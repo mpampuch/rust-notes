@@ -203,3 +203,37 @@ for char in slice.chars() {          // Iterate over Unicode scalars
 ```
 
 Strings cannot be indexed by character position due to UTF-8's variable byte encoding. Instead, use iterator methods like `bytes()`, `chars()`, or third-party crates for grapheme-level operations. String literals are always borrowed string slices.
+
+## Ownership
+
+Ownership is Rust's core memory management system with three fundamental rules: each value has exactly one owner, ownership can be transferred through moves, and values are automatically dropped when their owner goes out of scope. This system prevents memory leaks and data races without garbage collection.
+
+```rust
+let s1 = String::from("hello");
+let s2 = s1;                         // s1 is moved to s2
+// println!("{}", s1);              // Error: s1 no longer valid
+
+let s3 = s2.clone();                 // Deep copy (expensive)
+let s4 = s2;                         // s2 is moved to s4
+```
+
+When values are moved, the original variable becomes invalid and cannot be used. The `clone` method creates deep copies for heap-allocated data, while simple types like integers implement `Copy` and are automatically duplicated. Function parameters take ownership unless references are used.
+
+## References and Borrowing
+
+References allow you to refer to a value without taking ownership, using the ampersand operator to create pointers that are automatically managed by the compiler. References are immutable by default and must follow the borrowing rules: either one mutable reference or any number of immutable references at a time.
+
+```rust
+fn calculate_length(s: &String) -> usize {
+    s.len()                          // No ownership transfer
+}
+
+let mut s1 = String::from("hello");
+let r1 = &s1;                        // Immutable reference
+let r2 = &s1;                        // Another immutable reference
+let r3 = &mut s1;                    // Mutable reference (only one allowed)
+
+*r3 = String::from("world");         // Dereference to modify
+```
+
+The dot operator automatically dereferences references when accessing methods or fields. References are implemented as pointers but are guaranteed to be valid through Rust's lifetime system, preventing dangling pointers and null references.
