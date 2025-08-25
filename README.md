@@ -119,3 +119,36 @@ fn main() {
 ```
 
 The `use` statement brings items into scope, and absolute paths use double colons to access functions. Dependencies are added to `cargo.toml` and can be found on crates.io, Rust's package registry.
+
+## Scalar Types
+
+Rust provides four scalar types: integers, floats, booleans, and characters. Integer types include signed (i8, i16, i32, i64, i128, isize) and unsigned (u8, u16, u32, u64, u128, usize) variants, with i32 being the default for unannotated literals.
+
+```rust
+let decimal = 98_222;                // Decimal with underscores
+let hex = 0xff;                      // Hexadecimal
+let octal = 0o77;                    // Octal
+let binary = 0b1111_0000;            // Binary
+let byte = b'A';                     // Byte literal
+let float = 2.0;                     // f64 by default
+let boolean = true;                  // bool type
+let character = 'z';                 // Unicode scalar value
+```
+
+Floating point types include f32 and f64, with f64 being the default. Boolean values are true and false, and characters represent Unicode scalar values using single quotes. Integer literals can include underscores for readability, and type suffixes can be added to specify exact types.
+
+## Compound Types
+
+Compound types group multiple values into single types, with tuples storing values of different types and arrays storing values of the same type. Tuples use parentheses and dot notation for access, while arrays use square brackets and are limited to 32 elements.
+
+```rust
+let tuple: (i32, f64, u8) = (500, 6.4, 1);
+let first = tuple.0;                 // Access by index
+let (x, y, z) = tuple;               // Destructuring
+
+let array: [i32; 5] = [1, 2, 3, 4, 5];
+let first = array[0];                // Index access
+let repeated = [3; 5];               // [3, 3, 3, 3, 3]
+```
+
+Tuples have a maximum **arity** of 12 elements and use dot syntax to emphasize that members can be different types. Arrays are fixed-size, stack-allocated, and typically replaced with vectors for dynamic collections.
