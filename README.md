@@ -2,47 +2,43 @@
 
 Some tips / things of notes for myself while I'm learning rust
 
-## Chapter 1: Introduction to Rust
+## What is Rust
 
-### What is Rust?
+Rust is a systems programming language that pursues the trifecta of safety (guaranteed at compile time), fearless concurrency (easier when things are safe), and blazingly fast speed (due to zero-cost abstractions). Unlike high-level languages that offer safety but lack speed and concurrency, or systems languages like C/C++ that offer speed and concurrency but lack safety, Rust provides all three benefits simultaneously.
 
-Rust is a **systems programming language** that pursues the trifecta of:
+## Rust History
 
-- **Safety** - guaranteed at compile time
-- **Fearless concurrency** - easier when things are safe
-- **Blazingly fast speed** - due to zero-cost abstractions
+Rust was started in 2006 as a personal project by Graydon Hoare, a Mozilla employee. Mozilla began sponsoring Rust in 2009, and version 1.0 was released in 2015 after a 9-year incubation period. Mozilla sponsored Rust because they were tired of C++ and wanted a better language for Firefox development. The Firefox Quantum update in 2017, which rewrote the core in Rust, made Firefox over twice as fast and less buggy, proving Rust's effectiveness in production.
 
-### Rust vs Other Languages
+## Learning Rust
 
-- **High-level languages** (Ruby, Python): Safety ✅, Concurrency ❌, Speed ❌
-- **Systems languages** (C, C++): Speed ✅, Concurrency ✅, Safety ❌ (shoot yourself in the foot by design)
-- **Rust**: Safety ✅, Concurrency ✅, Speed ✅
+Rust has a steep learning curve at the beginning, making fundamentals crucial since without them your code won't compile. Effective learning requires understanding core concepts before writing complex programs, as the compiler enforces strict rules that must be followed for successful compilation.
 
-### History and Origins
+## Cargo Package Manager
 
-- **Started**: 2006 as personal project by Graydon Hoare (Mozilla employee)
-- **Mozilla sponsorship**: 2009
-- **Version 1.0**: 2015 (5 years old after 9-year incubation)
-- **Comparison**: C++ is ~35 years old, C is ~45 years old
+Cargo is the first tool you'll use and keep using for everything in Rust development. It combines the best parts of npm, pip, bundler, and make into a single tool that handles package management, building, testing, and documentation generation. Systems programmers can finally have nice things too.
 
-### Why Mozilla Sponsored Rust
+```bash
+cargo new hello
+```
 
-- Mozilla was tired of C++ and wanted a better language for Firefox
-- **Firefox Quantum** (2017): Core rewritten in Rust
-- Result: Firefox became over twice as fast and less buggy
-- Today: ~1.5 million lines of Rust in Firefox
+The `cargo new` command creates a complete project structure with a `cargo.toml` configuration file and a `src/main.rs` source file containing a hello world program. The `cargo.toml` file is the authoritative source of project information, containing the project name, version, authors, and edition.
 
-### Learning Approach
+```toml
+[package]
+name = "hello"
+version = "0.1.0"
+authors = ["Your Name <email@example.com>"]
+edition = "2018"
+```
 
-- **Steep learning curve** at the beginning
-- **Fundamentals are crucial** - without them, code won't compile
-- **Learn by doing**: Do exercises, create projects, experiment
-- **Anyone can learn Rust** and become a systems programmer
-- **Have fun** and learn a little more each day
+## Building and Running
 
-### Key Takeaways
+Cargo provides simple commands to build and run your projects. The `cargo run` command builds and runs your project in one step, while `cargo run --release` creates an optimized version for production use.
 
-- Rust combines the best of both worlds: safety of high-level languages with performance of systems languages
-- The language is relatively young but has proven itself in production (Firefox)
-- Focus on fundamentals first - they're essential for getting code to compile
-- Practice is essential due to the steep learning curve
+```bash
+cargo run              # Build and run in one step
+cargo run --release    # Build optimized version
+```
+
+Cargo compiles projects in debug mode by default, which includes debug symbols for faster compilation but slower execution. Release mode removes debug symbols, resulting in slower compilation but significantly faster execution. Cargo also implements smart caching and won't recompile if nothing has changed in your source code.
