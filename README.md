@@ -166,23 +166,88 @@ let message = if number < 5 {
 } else {
     "large"
 };
+```
 
+If expressions are expressions, not statements, meaning they return values. Four key points:
+
+1. No semicolons after branch values (tail expressions)
+2. Return cannot be used for this purpose
+3. All blocks must return the same type
+4. A semicolon is required at the end of the if expression when used in a statement context
+
+Braces are mandatory, preventing the common C programming error where additional lines end up outside the intended branch body.
+
+```rust
+// Rust's if expression replaces C's ternary operator
+let result = if condition { "yes" } else { "no" };
+
+// Nested if expressions remain readable
+let nested = if x > 0 {
+    if y > 0 { "both positive" } else { "x positive" }
+} else {
+    if y > 0 { "y positive" } else { "both negative" }
+};
+```
+
+The unconditional `loop` allows the compiler to perform optimizations when it knows a loop is unconditional. Use `break` to terminate loops, and labeled breaks to exit nested loops.
+
+```rust
 loop {
     if condition { break; }          // Unconditional loop
 }
 
-'outer: loop {                       // Labeled loop
+'outer: loop {                       // Labeled loop (tick identifier)
     loop {
         break 'outer;                // Break outer loop
     }
 }
 
-for i in 0..50 {                     // Range (exclusive)
-    println!("{}", i);
+'outer: loop {
+    loop {
+        continue 'outer;             // Continue outer loop
+    }
 }
 ```
 
-Loops include unconditional `loop`, conditional `while`, and iterator-based `for` loops with support for labeled breaks and continues. Ranges use `..` for exclusive and `..=` for inclusive bounds, and for loops can destructure iterated values.
+While loops have the same behaviors as unconditional loops but terminate when their condition evaluates to false. Rust refuses to coerce expressions to booleans, requiring explicit boolean values. While loops are essentially syntactic sugar for putting a negated break condition at the top of an unconditional loop.
+
+```rust
+while condition {
+    // Loop body
+}
+
+// Do-while equivalent
+loop {
+    // Loop body
+    if !condition { break; }
+}
+```
+
+For loops iterate over any iterable value, with compound and collection types providing multiple ways to get iterators. The `iter` method is common for getting iterators, which determine item order and selection.
+
+```rust
+for i in 0..50 {                     // Range (exclusive)
+    println!("{}", i);
+}
+
+for i in 0..=50 {                    // Range (inclusive)
+    println!("{}", i);
+}
+
+// Functional programming style with lazy evaluation
+let result: Vec<i32> = (0..10)
+    .filter(|&x| x % 2 == 0)
+    .map(|x| x * 2)
+    .collect();
+
+// Destructuring in for loops
+let pairs = vec![(1, 2), (3, 4), (5, 6)];
+for (x, y) in pairs {
+    println!("({}, {})", x, y);
+}
+```
+
+Ranges use `..` for exclusive bounds and `..=` for inclusive bounds, with the start being inclusive and end being exclusive by default. For loops can destructure items and bind parts to variables, similar to let statements but with variables local to the loop body.
 
 ## Strings
 
@@ -354,4 +419,4 @@ fn print_noise<T: Noisy>(item: T) {
 }
 ```
 
-Traits can have default implementations, inherit from other traits, and be implemented for any type as long as either the trait or type is defined in your crate. The `Copy` trait allows types to be copied instead of moved, while traits cannot define fields directly.
+Traits can have default implementations, inherit from other traits, and be implemented for any type as long as either the trait or type is defined in your crate. The `Copy` trait allows types to be copied instead of moved.
