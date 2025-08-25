@@ -204,6 +204,73 @@ for char in slice.chars() {          // Iterate over Unicode scalars
 
 Strings cannot be indexed by character position due to UTF-8's variable byte encoding. Instead, use iterator methods like `bytes()`, `chars()`, or third-party crates for grapheme-level operations. String literals are always borrowed string slices.
 
+### UTF-8 vs UTF-4 Encoding
+
+Rust's `char` type is always four bytes, making arrays of characters effectively UTF-32 strings, while Rust strings use UTF-8 encoding internally. This creates a mismatch where characters represent Unicode scalar values but strings store UTF-8 bytes, requiring different iteration methods for each encoding.
+
+```rust
+let thai_word = "สวัสดี";              // Thai word "sawatdi"
+// thai_word[3]                      // Error: cannot index strings
+
+for byte in thai_word.bytes() {      // 18 bytes total
+    println!("{}", byte);
+}
+
+for scalar in thai_word.chars() {    // 6 Unicode scalars
+    println!("{}", scalar);
+}
+```
+
+### Why you can't index Strings
+
+Because English isn't the only language, Rust prevents you from indexing what you want. The Thai word "`สวัสดี`" (sawatdi) perfectly illustrates Rust's string indexing challenges through three representation levels. At the byte level, it's 18 UTF-8 bytes where each Thai character requires 3 bytes. At the scalar level, it's 6 Unicode scalar values. At the grapheme level, it's 6 visual characters that users actually see.
+
+```rust
+let thai = "สวัสดี";
+// Byte level: 18 bytes (each Thai char = 3 bytes)
+// Scalar level: 6 Unicode scalars
+// Grapheme level: 6 visual characters
+```
+
+Consider attempting to access the character at index 3 in "`สวัสดี`". This string is stored as a vector of 18 bytes. If you indexed by bytes, you would not obtain the expected result. Unicode scalars in UTF-8 can be represented by 1, 2, 3, or 4 bytes, requiring traversal of the bytes to determine where one scalar ends and the next begins. In this case, every three bytes represents a Unicode scalar.
+
+```rust
+// Cannot index directly - would need O(n) traversal
+// thai[3]  // Error: cannot index strings
+```
+
+Even if scalar indexing were available, the result would still not match expectations. Diacritics are Unicode scalars that combine with other Unicode scalars to produce different graphemes, which are typically what users intend to access. This demonstrates how graphemes decompose into variable amounts of scalars, which in turn decompose into variable amounts of bytes.
+
+Instead, use iterators for different levels:
+
+```rust
+// Access bytes (UTF-8 encoding)
+for (i, byte) in thai.bytes().enumerate() {
+    println!("Byte {}: {}", i, byte);
+}
+
+// Access Unicode scalars
+for (i, scalar) in thai.chars().enumerate() {
+    println!("Scalar {}: {}", i, scalar);
+}
+```
+
+As part of Rust's emphasis on performance, indexing operations on standard library collections are guaranteed to be constant time operations. This guarantee cannot be provided for strings because the bytes, which are indexable, do not correspond to what users expect when indexing into a string. The graphemes, which users typically want, can only be retrieved after examining a sequence of bytes sequentially.
+
+For grapheme-level access, use external crates:
+
+```rust
+// For grapheme-level access, use external crates:
+use unicode_segmentation::UnicodeSegmentation;
+for (i, grapheme) in thai.graphemes(true).enumerate() {
+    println!("Grapheme {}: {}", i, grapheme);
+}
+```
+
+When working with strings, you have several options: use the `bytes()` method to access the vector of UTF-8 bytes, use the `chars()` method to retrieve an iterator for Unicode scalars, or use a package like `unicode-segmentation` which provides functions that handle graphemes of various types.
+
+Diacritics and combining characters further complicate indexing. A single visual character (grapheme) can be composed of multiple Unicode scalars, and each scalar can be 1-4 bytes in UTF-8. This three-level hierarchy (bytes → scalars → graphemes) makes constant-time indexing impossible, which is why Rust requires explicit iteration methods for string access.
+
 ## Ownership
 
 Ownership is Rust's core memory management system with three fundamental rules: each value has exactly one owner, ownership can be transferred through moves, and values are automatically dropped when their owner goes out of scope. This system prevents memory leaks and data races without garbage collection.
@@ -221,7 +288,7 @@ When values are moved, the original variable becomes invalid and cannot be used.
 
 ## References and Borrowing
 
-References allow you to refer to a value without taking ownership, using the ampersand operator to create pointers that are automatically managed by the compiler. References are immutable by default and must follow the borrowing rules: either one mutable reference or any number of immutable references at a time.
+References allow you to refer to a value without taking ownership, using the ampersand operator to create pointers that are automatically managed by the compiler. References are immutable by default and must follow the borrowing rules: **Variables can have either one mutable reference or any number of immutable references at a time.**
 
 ```rust
 fn calculate_length(s: &String) -> usize {
@@ -236,4 +303,55 @@ let r3 = &mut s1;                    // Mutable reference (only one allowed)
 *r3 = String::from("world");         // Dereference to modify
 ```
 
-The dot operator automatically dereferences references when accessing methods or fields. References are implemented as pointers but are guaranteed to be valid through Rust's lifetime system, preventing dangling pointers and null references.
+The dot operator automatically dereferences references when accessing methods or fields. References are implemented as pointers but are guaranteed to be valid through Rust's **lifetime** system, preventing dangling pointers and null references.
+
+## Structs
+
+Structs are Rust's primary way to create custom data types, combining data fields with associated methods and functions. Struct definitions use the `struct` keyword with capital camel case naming, and all fields must be specified when creating instances unless default constructors are provided.
+
+```rust
+struct RedFox {
+    energy: u32,
+    name: String,
+}
+
+impl RedFox {
+    fn new() -> Self {
+        RedFox {
+            energy: 70,
+            name: String::from("Red Fox"),
+        }
+    }
+
+    fn run(&mut self) {
+        self.energy -= 1;
+    }
+}
+
+let mut fox = RedFox::new();
+fox.run();
+```
+
+The `impl` block defines all behavior for a struct, separating data definition from implementation. Methods take `self` as their first parameter and are called on instances, while associated functions (like constructors) don't take `self` and are called on the type itself. The `Self` type alias refers to the struct being implemented, and multiple `impl` blocks can exist for the same struct to organize related functionality. This pattern of defining data with `struct` and behavior with `impl` is the standard way to create custom types in Rust.
+
+## Traits
+
+Traits define shared behavior that can be implemented by multiple types, serving as Rust's alternative to inheritance. Traits specify required methods that implementing types must provide, enabling generic functions that work with any type implementing a specific trait.
+
+```rust
+trait Noisy {
+    fn get_noise(&self) -> &str;
+}
+
+impl Noisy for RedFox {
+    fn get_noise(&self) -> &str {
+        "meow"
+    }
+}
+
+fn print_noise<T: Noisy>(item: T) {
+    println!("{}", item.get_noise());
+}
+```
+
+Traits can have default implementations, inherit from other traits, and be implemented for any type as long as either the trait or type is defined in your crate. The `Copy` trait allows types to be copied instead of moved, while traits cannot define fields directly.
