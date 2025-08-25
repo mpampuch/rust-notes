@@ -152,3 +152,54 @@ let repeated = [3; 5];               // [3, 3, 3, 3, 3]
 ```
 
 Tuples have a maximum **arity** of 12 elements and use dot syntax to emphasize that members can be different types. Arrays are fixed-size, stack-allocated, and typically replaced with vectors for dynamic collections.
+
+## Control Flow
+
+Rust's control flow structures are expressions that return values, with if statements requiring explicit boolean conditions and mandatory braces. If expressions can be used for conditional assignment, with all branches returning the same type and no semicolons on the returned values.
+
+```rust
+let number = 7;
+let message = if number < 5 {
+    "small"
+} else if number < 10 {
+    "medium"
+} else {
+    "large"
+};
+
+loop {
+    if condition { break; }          // Unconditional loop
+}
+
+'outer: loop {                       // Labeled loop
+    loop {
+        break 'outer;                // Break outer loop
+    }
+}
+
+for i in 0..50 {                     // Range (exclusive)
+    println!("{}", i);
+}
+```
+
+Loops include unconditional `loop`, conditional `while`, and iterator-based `for` loops with support for labeled breaks and continues. Ranges use `..` for exclusive and `..=` for inclusive bounds, and for loops can destructure iterated values.
+
+## Strings
+
+Rust provides two main string types: `&str` (borrowed string slice) and `String` (owned string), both guaranteed to be valid UTF-8. String slices are immutable references to string data, while owned strings can be modified and contain additional capacity for growth.
+
+```rust
+let slice: &str = "Hello";           // String slice (immutable)
+let owned = String::from("World");   // Owned string (mutable)
+let converted = slice.to_string();   // Convert slice to owned
+
+for byte in slice.bytes() {          // Iterate over bytes
+    println!("{}", byte);
+}
+
+for char in slice.chars() {          // Iterate over Unicode scalars
+    println!("{}", char);
+}
+```
+
+Strings cannot be indexed by character position due to UTF-8's variable byte encoding. Instead, use iterator methods like `bytes()`, `chars()`, or third-party crates for grapheme-level operations. String literals are always borrowed string slices.
