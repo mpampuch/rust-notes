@@ -220,6 +220,159 @@ let boolean = mess.1.1[0];           // Access nested: tuple -> tuple -> array
 
 Tuples have a maximum **arity** of 12 elements and use dot syntax to emphasize that members can be different types. Arrays are fixed-size, stack-allocated, and typically replaced with vectors for dynamic collections. Both tuples and arrays can be converted between each other when the types are compatible.
 
+## Collections
+
+Collections are data structures that hold multiple values. Rust's standard library provides several collection types, each optimized for different use cases.
+
+### Vectors (`Vec<T>`)
+
+Vectors are the most commonly used collection, similar to arrays or lists in other languages. They store values of the same type in contiguous memory.
+
+```rust
+// Creating vectors
+let mut numbers: Vec<i32> = Vec::new();
+numbers.push(1);
+numbers.push(2);
+numbers.push(3);
+
+// Using the vec! macro for initialization
+let numbers = vec![1, 2, 3, 4, 5];
+
+// Accessing elements
+let first = numbers[0];               // Indexing (panics if out of bounds)
+let first = numbers.get(0);           // Returns Option<&i32>
+
+// Stack operations
+numbers.push(6);                      // Add to end
+let last = numbers.pop();             // Remove and return last element
+
+// Common methods
+numbers.insert(1, 10);                // Insert at index
+numbers.remove(1);                    // Remove at index
+numbers.sort();                       // Sort in place
+```
+
+### HashMaps (`HashMap<K, V>`)
+
+HashMaps store key-value pairs with constant-time lookup, similar to dictionaries in other languages.
+
+```rust
+use std::collections::HashMap;
+
+let mut scores = HashMap::new();
+scores.insert("Alice", 100);
+scores.insert("Bob", 85);
+
+// Accessing values
+let alice_score = scores.get("Alice"); // Returns Option<&i32>
+let alice_score = scores["Alice"];     // Panics if key doesn't exist
+
+// Updating values
+scores.insert("Alice", 95);            // Overwrites existing value
+scores.entry("Charlie").or_insert(0);  // Insert if not exists
+
+// Iterating
+for (name, score) in &scores {
+    println!("{}: {}", name, score);
+}
+```
+
+### Other Collections
+
+- **`VecDeque<T>`** - Double-ended queue (ring buffer)
+- **`LinkedList<T>`** - Linked list (slow for most operations)
+- **`HashSet<T>`** - Set with hash-based lookup
+- **`BinaryHeap<T>`** - Priority queue (max-heap)
+- **`BTreeMap<K, V>`** - Sorted map using B-tree
+- **`BTreeSet<T>`** - Sorted set using B-tree
+
+## Strings
+
+Rust provides two main string types: `&str` (borrowed string slice) and `String` (owned string), both guaranteed to be valid UTF-8. String slices are immutable references to string data, while owned strings can be modified and contain additional capacity for growth.
+
+```rust
+let slice: &str = "Hello";           // String slice (immutable)
+let owned = String::from("World");   // Owned string (mutable)
+let converted = slice.to_string();   // Convert slice to owned
+
+for byte in slice.bytes() {          // Iterate over bytes
+    println!("{}", byte);
+}
+
+for char in slice.chars() {          // Iterate over Unicode scalars
+    println!("{}", char);
+}
+```
+
+Strings cannot be indexed by character position due to UTF-8's variable byte encoding. Instead, use iterator methods like `bytes()`, `chars()`, or third-party crates for grapheme-level operations. String literals are always borrowed string slices.
+
+### UTF-8 vs UTF-4 Encoding
+
+Rust's `char` type is always four bytes, making arrays of characters effectively UTF-32 strings, while Rust strings use UTF-8 encoding internally. This creates a mismatch where characters represent Unicode scalar values but strings store UTF-8 bytes, requiring different iteration methods for each encoding.
+
+```rust
+let thai_word = "สวัสดี";              // Thai word "sawatdi"
+// thai_word[3]                      // Error: cannot index strings
+
+for byte in thai_word.bytes() {      // 18 bytes total
+    println!("{}", byte);
+}
+
+for scalar in thai_word.chars() {    // 6 Unicode scalars
+    println!("{}", scalar);
+}
+```
+
+### Why you can't index Strings
+
+Because English isn't the only language, Rust prevents you from indexing what you want. The Thai word "`สวัสดี`" (sawatdi) perfectly illustrates Rust's string indexing challenges through three representation levels. At the byte level, it's 18 UTF-8 bytes where each Thai character requires 3 bytes. At the scalar level, it's 6 Unicode scalar values. At the grapheme level, it's 6 visual characters that users actually see.
+
+```rust
+let thai = "สวัสดี";
+// Byte level: 18 bytes (each Thai char = 3 bytes)
+// Scalar level: 6 Unicode scalars
+// Grapheme level: 6 visual characters
+```
+
+Consider attempting to access the character at index 3 in "`สวัสดี`". This string is stored as a vector of 18 bytes. If you indexed by bytes, you would not obtain the expected result. Unicode scalars in UTF-8 can be represented by 1, 2, 3, or 4 bytes, requiring traversal of the bytes to determine where one scalar ends and the next begins. In this case, every three bytes represents a Unicode scalar.
+
+```rust
+// Cannot index directly - would need O(n) traversal
+// thai[3]  // Error: cannot index strings
+```
+
+Even if scalar indexing were available, the result would still not match expectations. Diacritics are Unicode scalars that combine with other Unicode scalars to produce different graphemes, which are typically what users intend to access. This demonstrates how graphemes decompose into variable amounts of scalars, which in turn decompose into variable amounts of bytes.
+
+Instead, use iterators for different levels:
+
+```rust
+// Access bytes (UTF-8 encoding)
+for (i, byte) in thai.bytes().enumerate() {
+    println!("Byte {}: {}", i, byte);
+}
+
+// Access Unicode scalars
+for (i, scalar) in thai.chars().enumerate() {
+    println!("Scalar {}: {}", i, scalar);
+}
+```
+
+As part of Rust's emphasis on performance, indexing operations on standard library collections are guaranteed to be constant time operations. This guarantee cannot be provided for strings because the bytes, which are indexable, do not correspond to what users expect when indexing into a string. The graphemes, which users typically want, can only be retrieved after examining a sequence of bytes sequentially.
+
+For grapheme-level access, use external crates:
+
+```rust
+// For grapheme-level access, use external crates:
+use unicode_segmentation::UnicodeSegmentation;
+for (i, grapheme) in thai.graphemes(true).enumerate() {
+    println!("Grapheme {}: {}", i, grapheme);
+}
+```
+
+When working with strings, you have several options: use the `bytes()` method to access the vector of UTF-8 bytes, use the `chars()` method to retrieve an iterator for Unicode scalars, or use a package like `unicode-segmentation` which provides functions that handle graphemes of various types.
+
+Diacritics and combining characters further complicate indexing. A single visual character (grapheme) can be composed of multiple Unicode scalars, and each scalar can be 1-4 bytes in UTF-8. This three-level hierarchy (bytes → scalars → graphemes) makes constant-time indexing impossible, which is why Rust requires explicit iteration methods for string access.
+
 ## Control Flow
 
 Rust's control flow structures are expressions that return values, with if statements requiring explicit boolean conditions and mandatory braces. If expressions can be used for conditional assignment, with all branches returning the same type and no semicolons on the returned values.
@@ -337,92 +490,125 @@ println!("You can double x {} times before it is larger than 500", count);
 
 Ranges use `..` for exclusive bounds and `..=` for inclusive bounds, with the start being inclusive and end being exclusive by default. For loops can destructure items and bind parts to variables, similar to let statements but with variables local to the loop body. Command line arguments are accessed through `std::env::args()` and can be processed with control flow structures.
 
-## Strings
+## Enums
 
-Rust provides two main string types: `&str` (borrowed string slice) and `String` (owned string), both guaranteed to be valid UTF-8. String slices are immutable references to string data, while owned strings can be modified and contain additional capacity for growth.
+Enums in Rust are algebraic data types that can hold different variants, each potentially containing different data. They're more powerful than C-style enums and can represent complex data structures.
+
+### Basic Enum Syntax
 
 ```rust
-let slice: &str = "Hello";           // String slice (immutable)
-let owned = String::from("World");   // Owned string (mutable)
-let converted = slice.to_string();   // Convert slice to owned
-
-for byte in slice.bytes() {          // Iterate over bytes
-    println!("{}", byte);
+enum DispenserItem {
+    Empty,
+    Ammo(u8),
+    Things(String, i32),
+    Place { x: i32, y: i32 },
 }
 
-for char in slice.chars() {          // Iterate over Unicode scalars
-    println!("{}", char);
+// Using enum variants
+let item = DispenserItem::Ammo(5);
+let place = DispenserItem::Place { x: 10, y: 20 };
+```
+
+### Pattern Matching
+
+Enums require pattern matching to access their data safely.
+
+```rust
+// if let - for single variant matching
+if let DispenserItem::Ammo(count) = item {
+    println!("Got {} ammo", count);
+}
+
+// match - for exhaustive pattern matching
+match item {
+    DispenserItem::Empty => println!("Empty"),
+    DispenserItem::Ammo(count) => println!("Got {} ammo", count),
+    DispenserItem::Things(name, count) => println!("Got {} {}", count, name),
+    DispenserItem::Place { x, y } => println!("At position ({}, {})", x, y),
 }
 ```
 
-Strings cannot be indexed by character position due to UTF-8's variable byte encoding. Instead, use iterator methods like `bytes()`, `chars()`, or third-party crates for grapheme-level operations. String literals are always borrowed string slices.
+### Option Enum
 
-### UTF-8 vs UTF-4 Encoding
-
-Rust's `char` type is always four bytes, making arrays of characters effectively UTF-32 strings, while Rust strings use UTF-8 encoding internally. This creates a mismatch where characters represent Unicode scalar values but strings store UTF-8 bytes, requiring different iteration methods for each encoding.
+`Option<T>` represents a value that might be present or absent, replacing null/nil from other languages.
 
 ```rust
-let thai_word = "สวัสดี";              // Thai word "sawatdi"
-// thai_word[3]                      // Error: cannot index strings
+// Option is in the prelude (no need to import)
+let some_number: Option<i32> = Some(5);
+let no_number: Option<i32> = None;
 
-for byte in thai_word.bytes() {      // 18 bytes total
-    println!("{}", byte);
+// Pattern matching with Option
+match some_number {
+    Some(value) => println!("Got: {}", value),
+    None => println!("No value"),
 }
 
-for scalar in thai_word.chars() {    // 6 Unicode scalars
-    println!("{}", scalar);
-}
-```
-
-### Why you can't index Strings
-
-Because English isn't the only language, Rust prevents you from indexing what you want. The Thai word "`สวัสดี`" (sawatdi) perfectly illustrates Rust's string indexing challenges through three representation levels. At the byte level, it's 18 UTF-8 bytes where each Thai character requires 3 bytes. At the scalar level, it's 6 Unicode scalar values. At the grapheme level, it's 6 visual characters that users actually see.
-
-```rust
-let thai = "สวัสดี";
-// Byte level: 18 bytes (each Thai char = 3 bytes)
-// Scalar level: 6 Unicode scalars
-// Grapheme level: 6 visual characters
-```
-
-Consider attempting to access the character at index 3 in "`สวัสดี`". This string is stored as a vector of 18 bytes. If you indexed by bytes, you would not obtain the expected result. Unicode scalars in UTF-8 can be represented by 1, 2, 3, or 4 bytes, requiring traversal of the bytes to determine where one scalar ends and the next begins. In this case, every three bytes represents a Unicode scalar.
-
-```rust
-// Cannot index directly - would need O(n) traversal
-// thai[3]  // Error: cannot index strings
-```
-
-Even if scalar indexing were available, the result would still not match expectations. Diacritics are Unicode scalars that combine with other Unicode scalars to produce different graphemes, which are typically what users intend to access. This demonstrates how graphemes decompose into variable amounts of scalars, which in turn decompose into variable amounts of bytes.
-
-Instead, use iterators for different levels:
-
-```rust
-// Access bytes (UTF-8 encoding)
-for (i, byte) in thai.bytes().enumerate() {
-    println!("Byte {}: {}", i, byte);
+// Helper methods
+if some_number.is_some() {
+    println!("Has value: {}", some_number.unwrap());
 }
 
-// Access Unicode scalars
-for (i, scalar) in thai.chars().enumerate() {
-    println!("Scalar {}: {}", i, scalar);
+// Option implements IntoIterator
+for value in some_number {
+    println!("Value: {}", value);
 }
 ```
 
-As part of Rust's emphasis on performance, indexing operations on standard library collections are guaranteed to be constant time operations. This guarantee cannot be provided for strings because the bytes, which are indexable, do not correspond to what users expect when indexing into a string. The graphemes, which users typically want, can only be retrieved after examining a sequence of bytes sequentially.
+### Result Enum
 
-For grapheme-level access, use external crates:
+`Result<T, E>` represents success or failure, commonly used for error handling.
 
 ```rust
-// For grapheme-level access, use external crates:
-use unicode_segmentation::UnicodeSegmentation;
-for (i, grapheme) in thai.graphemes(true).enumerate() {
-    println!("Grapheme {}: {}", i, grapheme);
+use std::fs::File;
+
+// File operations return Result
+let file_result = File::open("example.txt");
+
+// Must handle Result (compiler warning if ignored)
+match file_result {
+    Ok(file) => println!("File opened successfully"),
+    Err(error) => println!("Error: {}", error),
+}
+
+// Common methods
+let file = file_result.unwrap();      // Panics on error
+let file = file_result.expect("Failed to open file");  // Panics with message
+
+// Helper methods
+if file_result.is_ok() {
+    let file = file_result.unwrap();
 }
 ```
 
-When working with strings, you have several options: use the `bytes()` method to access the vector of UTF-8 bytes, use the `chars()` method to retrieve an iterator for Unicode scalars, or use a package like `unicode-segmentation` which provides functions that handle graphemes of various types.
+**Key Features:** Enums are algebraic data types that are more powerful than C-style enums, supporting pattern matching that is exhaustive and safe. They provide generic support to hold any type and can implement methods like structs. Enums eliminate null values by using `Option` to represent presence or absence, and `Result` for error handling with success or failure outcomes.
 
-Diacritics and combining characters further complicate indexing. A single visual character (grapheme) can be composed of multiple Unicode scalars, and each scalar can be 1-4 bytes in UTF-8. This three-level hierarchy (bytes → scalars → graphemes) makes constant-time indexing impossible, which is why Rust requires explicit iteration methods for string access.
+```rust
+// Practical example combining enums and collections
+enum Shot {
+    Bullseye,
+    Hit(f64),    // Distance from center
+    Miss,
+}
+
+impl Shot {
+    fn points(&self) -> i32 {
+        match self {
+            Shot::Bullseye => 5,
+            Shot::Hit(distance) if *distance < 3.0 => 2,
+            Shot::Hit(_) => 1,
+            Shot::Miss => 0,
+        }
+    }
+}
+
+// Using with collections
+let mut shots = Vec::new();
+shots.push(Shot::Hit(1.2));          // 2 points
+shots.push(Shot::Hit(4.3));          // 1 point
+shots.push(Shot::Bullseye);          // 5 points
+
+let total: i32 = shots.iter().map(|shot| shot.points()).sum();
+```
 
 ## Ownership
 
@@ -745,7 +931,7 @@ if puzzle1 == puzzle2 {
 
 **From and Into Traits:** Enable type conversions. Implement `From` to automatically get `Into`.
 
-````rust
+```rust
 // Implement From to get Into automatically
 impl From<Puzzle> for String {
     fn from(puzzle: Puzzle) -> Self {
@@ -772,6 +958,7 @@ fn show<T: Into<String>>(item: T) {
 }
 
 show(&puzzle);  // Works with reference, doesn't consume puzzle
+```
 
 ### Practical Exercise Examples
 
@@ -851,7 +1038,257 @@ let party2 = Party { cake: Cake::MapleBacon, restaurant: false, attendees: 235, 
 if party1 == party2 {
     println!("Your party is just like mine!");
 }
-````
+```
+
+## Closures
+
+Closures are anonymous functions that can capture values from their enclosing scope. They're commonly used with iterators, threading, and functional programming patterns.
+
+### Basic Closure Syntax
+
+```rust
+// Simple closure with parameters
+let add = |x, y| x + y;
+let result = add(1, 2);               // 3
+
+// Closure with no parameters
+let get_five = || 5;
+let five = get_five();                // 5
+
+// Closure capturing from scope
+let message = String::from("Hello");
+let print_message = || println!("{}", message);
+print_message();                      // Prints "Hello"
+```
+
+### Move Closures
+
+Closures can take ownership of captured values using the `move` keyword.
+
+```rust
+let data = vec![1, 2, 3, 4, 5];
+
+// Borrowing closure (captures reference)
+let sum_ref = || {
+    let total: i32 = data.iter().sum();
+    println!("Sum: {}", total);
+};
+
+// Moving closure (takes ownership)
+let sum_move = move || {
+    let total: i32 = data.iter().sum();
+    println!("Sum: {}", total);
+};
+
+// Can be sent to threads or returned from functions
+```
+
+### Functional Programming with Closures
+
+Closures are essential for functional programming patterns with iterators.
+
+```rust
+let numbers = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+let result: i32 = numbers
+    .iter()
+    .map(|x| x * 3)                   // Multiply each by 3
+    .filter(|x| x > &10)              // Keep values > 10
+    .fold(0, |acc, x| acc + x);       // Sum remaining values
+
+println!("Result: {}", result);       // 45 (15 + 18 + 21 + 24 + 27 + 30)
+```
+
+**Key Features:** Closures are anonymous functions that eliminate the need to define separate functions, with type inference automatically determining parameter and return types. They can capture variables from their enclosing scope and support move semantics to take ownership of captured values. Closures work seamlessly with iterator methods like `map`, `filter`, and `fold`, and move closures can be safely sent between threads.
+
+### Advanced Closure Concepts
+
+**Type Inference:** The compiler automatically determines argument and return types based on how the closure is used, eliminating the need for explicit type annotations in most cases.
+
+**Borrowing vs Moving:** Closures automatically borrow references to values in their enclosing scope by default. Use the `move` keyword to take ownership of captured values, which is essential for sending closures to threads or returning them from functions.
+
+```rust
+// Automatic borrowing (default behavior)
+let s = String::from("strawberry");
+let f = || println!("{}", s);  // Borrows reference to s
+f();  // Prints "strawberry"
+println!("{}", s);  // Still accessible
+
+// Move semantics
+let s = String::from("strawberry");
+let f = move || println!("{}", s);  // Takes ownership of s
+f();  // Prints "strawberry"
+// println!("{}", s);  // Error: s moved into closure
+
+// Clone for shared access
+let s = String::from("strawberry");
+let s_clone = s.clone();
+let f = move || println!("{}", s_clone);  // Uses clone
+f();  // Prints "strawberry"
+println!("{}", s);  // Original still accessible
+```
+
+**Function Types:** When passing closures to or from functions, you may need to specify closure types using traits from `std::ops`: `Fn`, `FnMut`, and `FnOnce`. These are advanced traits that determine how the closure captures and uses its environment.
+
+## Iterators
+
+Iterators are the foundation of Rust's functional programming capabilities, providing lazy evaluation and efficient data processing. They work seamlessly with closures to create powerful data transformation pipelines.
+
+### Basic Iterator Usage
+
+```rust
+let numbers = vec![1, 2, 3, 4, 5];
+
+// Basic iteration
+for num in &numbers {
+    println!("{}", num);
+}
+
+// Functional style with iterators
+numbers.iter()
+    .map(|x| x * 2)
+    .filter(|x| x > &5)
+    .for_each(|x| println!("{}", x));
+```
+
+### Iterator Types
+
+There are three main types of iterators depending on how they access collection data:
+
+```rust
+let mut numbers = vec![1, 2, 3, 4, 5];
+
+// into_iter() - Takes ownership (consumes collection)
+for num in numbers.into_iter() {
+    println!("{}", num);
+}
+// numbers is no longer available
+
+// iter() - Borrows immutably (preserves collection)
+let numbers = vec![1, 2, 3, 4, 5];
+for num in numbers.iter() {
+    println!("{}", num);  // num is &i32
+}
+// numbers is still available
+
+// iter_mut() - Borrows mutably (allows modification)
+let mut numbers = vec![1, 2, 3, 4, 5];
+for num in numbers.iter_mut() {
+    *num *= 2;  // num is &mut i32
+}
+// numbers is now [2, 4, 6, 8, 10]
+```
+
+### Syntactic Sugar
+
+For loops automatically use the appropriate iterator method:
+
+```rust
+let numbers = vec![1, 2, 3, 4, 5];
+
+// These are equivalent:
+for num in &numbers { /* ... */ }        // iter()
+for num in &mut numbers { /* ... */ }    // iter_mut()
+for num in numbers { /* ... */ }         // into_iter()
+```
+
+### Iterator Adapters vs Consumers
+
+Iterator adapters transform iterators without consuming them, while consumers actually process the data.
+
+```rust
+let numbers = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+// Iterator adapters (lazy - no processing yet)
+let transformed = numbers
+    .into_iter()
+    .map(|x| x * 3)           // Transform each item
+    .filter(|x| x % 2 == 0);  // Keep only even numbers
+
+// Iterator consumer (triggers processing)
+let result: i32 = transformed.sum();  // Actually processes the data
+println!("{}", result);  // 90 (sum of 6, 12, 18, 24, 30)
+```
+
+### The Turbofish (`::<>`)
+
+Used to specify generic types when the compiler can't infer them:
+
+```rust
+let numbers = vec![1, 2, 3, 4, 5];
+
+// Without turbofish (compiler error)
+// let sum = numbers.iter().sum();
+
+// With turbofish (explicit type)
+let sum: i32 = numbers.iter().sum();
+let sum = numbers.iter().sum::<i32>();
+
+// With collect (needs type annotation)
+let doubled: Vec<i32> = numbers.iter().map(|x| x * 2).collect();
+let doubled = numbers.iter().map(|x| x * 2).collect::<Vec<_>>();
+```
+
+### Drain Method
+
+Removes items from a collection without consuming the collection itself:
+
+```rust
+let mut numbers = vec![1, 2, 3, 4, 5];
+
+// Drain all items
+for num in numbers.drain(..) {
+    println!("Drained: {}", num);
+}
+// numbers is now empty but still usable
+
+use std::collections::HashMap;
+let mut map = HashMap::new();
+map.insert("a", 1);
+map.insert("b", 2);
+
+// Drain all key-value pairs
+for (key, value) in map.drain() {
+    println!("Drained: {} = {}", key, value);
+}
+// map is now empty but still usable
+```
+
+**Key Features:** Iterators are lazy and only process items when consumed. They provide a functional programming approach to data processing with methods like `map`, `filter`, `fold`, and `sum`. Iterators can be chained together to create complex data transformations, and they're often more efficient than traditional loops due to compiler optimizations.
+
+### Practical Exercise Examples
+
+The exercise demonstrates comprehensive closure and iterator usage:
+
+```rust
+// 1. Basic closure creation
+let square = |x| x * x;
+println!("5 squared is {}", square(5));  // 25
+
+// 2. Iterator with tuple destructuring
+let tuples = vec![(0, 1), (2, 3), (4, 5)];
+let result: Vec<_> = tuples
+    .into_iter()
+    .map(|(x, y)| (x + 1, y))  // Destructure tuple in parameter
+    .collect();
+// Result: [(1, 1), (3, 3), (5, 5)]
+
+// 3. Mutable iteration with syntactic sugar
+let mut numbers = vec![1, 2, 3, 4];
+for x in &mut numbers {
+    *x *= 3;  // Equivalent to: x *= 3;
+}
+// numbers is now [3, 6, 9, 12]
+
+// 4. Complex iterator chain
+let words = vec!["hello", "world", "rust", "programming"];
+let filtered_words: Vec<_> = words
+    .into_iter()                    // Convert to iterator
+    .filter(|s| !s.contains('h'))   // Remove words with 'h'
+    .map(|w| w.to_uppercase())      // Convert to uppercase
+    .collect();                     // Collect into vector
+// Result: ["WORLD", "RUST", "PROGRAMMING"]
+```
 
 ## Error Handling
 
@@ -1161,6 +1598,577 @@ fn main() -> Result<()> {
     Ok(())
 }
 ```
+
+## Threads
+
+Rust provides portable threading that works across different platforms (macOS, Linux, Windows). Threads allow concurrent execution and can run simultaneously on multiple CPU cores.
+
+### Thread Fundamentals
+
+Every process starts with a single **main thread**. You can spawn additional threads to perform parallel processing, which is especially beneficial on multi-core systems.
+
+**Why Use Threads:**
+
+Threads provide **parallel processing** by utilizing multiple CPU cores simultaneously, **shared memory** since threads in the same process can share memory, **cost efficiency** as threads are cheaper than processes, and **performance** benefits by potentially running twice as fast on dual-core systems (minus communication overhead).
+
+### Basic Threading
+
+```rust
+use std::thread;
+
+fn main() {
+    // Spawn a new thread
+    let handle = thread::spawn(|| {
+        println!("Hello from thread!");
+        42  // Return value from thread
+    });
+
+    // Do work in main thread
+    println!("Hello from main thread!");
+
+    // Wait for spawned thread to complete
+    let result = handle.join().unwrap();
+    println!("Thread returned: {}", result);
+}
+```
+
+### Thread Handles and Joining
+
+**Key Concepts:**
+
+The **`thread::spawn()`** function creates a new thread and returns a `JoinHandle`, which allows you to wait for thread completion and retrieve results. The **`join()`** method blocks until the thread completes and returns a `Result<T, E>`, and **thread cleanup** requires always joining threads to ensure clean termination.
+
+```rust
+use std::thread;
+
+fn main() {
+    let handle = thread::spawn(|| {
+        // Simulate some work
+        thread::sleep(std::time::Duration::from_secs(2));
+        "Thread completed successfully"
+    });
+
+    // Main thread continues while child thread runs
+    println!("Main thread doing other work...");
+
+    // Wait for child thread to complete
+    match handle.join() {
+        Ok(result) => println!("Thread result: {}", result),
+        Err(e) => println!("Thread panicked: {:?}", e),
+    }
+}
+```
+
+### Thread Return Values
+
+Threads can return any type that implements the `Send` trait:
+
+```rust
+use std::thread;
+
+fn main() {
+    let handle = thread::spawn(|| {
+        // Complex computation
+        let mut sum = 0;
+        for i in 1..=1000 {
+            sum += i;
+        }
+        sum
+    });
+
+    let result = handle.join().unwrap();
+    println!("Sum: {}", result);
+}
+```
+
+### Practical Example: Parallel Cooking
+
+```rust
+use std::thread;
+use std::time::Duration;
+
+mod dad {
+    use super::*;
+
+    pub fn cook_spaghetti() -> bool {
+        println!("Dad: Starting to cook spaghetti...");
+        thread::sleep(Duration::from_secs(4));
+        println!("Dad: Spaghetti is ready!");
+        true
+    }
+}
+
+mod mom {
+    use super::*;
+
+    pub fn cook_sauce_and_set_table() {
+        println!("Mom: Starting to cook sauce...");
+        thread::sleep(Duration::from_secs(2));
+        println!("Mom: Sauce is ready!");
+
+        println!("Mom: Setting the table...");
+        thread::sleep(Duration::from_secs(1));
+        println!("Mom: Table is set!");
+    }
+}
+
+fn main() {
+    // Spawn thread for dad's task
+    let spaghetti_handle = thread::spawn(dad::cook_spaghetti);
+
+    // Mom's task runs on main thread
+    mom::cook_sauce_and_set_table();
+
+    // Wait for dad to finish
+    let spaghetti_success = spaghetti_handle.join().unwrap();
+
+    if spaghetti_success {
+        println!("Dinner is ready!");
+    } else {
+        println!("Something went wrong with the spaghetti!");
+    }
+}
+```
+
+### Threads with Move Closures
+
+Threads often use move closures to take ownership of data.
+
+```rust
+use std::thread;
+
+fn main() {
+    let data = vec![1, 2, 3, 4, 5];
+
+    let handle = thread::spawn(move || {
+        // data is moved into this thread
+        let sum: i32 = data.iter().sum();
+        println!("Sum in thread: {}", sum);
+        sum
+    });
+
+    // data is no longer available in main thread
+    let result = handle.join().unwrap();
+    println!("Thread result: {}", result);
+}
+```
+
+### Thread Safety Considerations
+
+```rust
+use std::thread;
+use std::sync::{Arc, Mutex};
+
+fn main() {
+    let counter = Arc::new(Mutex::new(0));
+    let mut handles = vec![];
+
+    for _ in 0..10 {
+        let counter = Arc::clone(&counter);
+        let handle = thread::spawn(move || {
+            let mut num = counter.lock().unwrap();
+            *num += 1;
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    println!("Final count: {}", *counter.lock().unwrap());
+}
+```
+
+### Thread Performance Considerations
+
+**Thread Overhead:**
+
+Threads have **memory allocation** costs as each thread allocates ~2MB for its stack, **context switching** overhead as the CPU must perform expensive context switches, and **scheduling overhead** that increases when more threads share a core.
+
+**When to Use Threads:**
+
+Threads are ideal for **CPU-intensive tasks** that benefit from parallel processing on multiple cores, **I/O operations** while waiting for disk/network (though async/await is more efficient), and **independent computations** where tasks can run simultaneously.
+
+**Best Practices:**
+
+Thread management requires **always joining threads** to ensure clean termination, **limiting thread count** by not creating more threads than CPU cores for CPU-bound tasks, **using async/await** for I/O-bound concurrent operations, and **considering thread pools** for managing many short-lived tasks.
+
+**Key Features:** Rust threads are portable across Mac, Linux, Windows, and other platforms, with join handles that can wait for thread completion and retrieve return values. The `join()` method returns `Result<T, E>` for proper panic handling, and threads can use move closures to take ownership of data. Threads are heavyweight, allocating several MB of stack memory each, with expensive context switching when many threads share CPU cores. They are best suited for CPU-bound computational tasks, while I/O-bound operations should consider async/await for better efficiency.
+
+```rust
+// Practical example combining closures and threads
+use std::thread;
+use std::time::Duration;
+
+fn expensive_sum(numbers: Vec<i32>) -> i32 {
+    thread::sleep(Duration::from_millis(500));  // Simulate work
+    numbers
+        .iter()
+        .filter(|&x| x % 2 != 0)                // Remove even numbers
+        .map(|&x| x * x)                        // Square remaining numbers
+        .sum()
+}
+
+fn main() {
+    let numbers = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+    // Spawn thread with move closure
+    let handle = thread::spawn(move || {
+        expensive_sum(numbers)
+    });
+
+    // Main thread continues working
+    for letter in ['A', 'B', 'C', 'D', 'E', 'F'] {
+        println!("{}", letter);
+        thread::sleep(Duration::from_millis(200));
+    }
+
+    // Wait for thread completion and get result
+    let result = handle.join().unwrap();
+    println!("Thread result: {}", result);
+}
+```
+
+## Channels
+
+Channels provide a way for threads to communicate by sending messages. While the standard library has a channel implementation, the **crossbeam** crate provides a more efficient and feature-rich alternative.
+
+### Channel Fundamentals
+
+A channel is a one-way queue that threads use to send values to other threads. Values sent through channels must implement the `Send` trait, which the compiler automatically implements for most types.
+
+**Channel Types:**
+
+- **Bounded channels** have a fixed capacity and block when full, providing backpressure
+- **Unbounded channels** grow indefinitely until memory is exhausted
+
+### Crossbeam Channels
+
+```rust
+use crossbeam_channel::{unbounded, bounded, Sender, Receiver};
+use std::thread;
+
+fn main() {
+    // Create an unbounded channel
+    let (tx, rx) = unbounded::<String>();
+
+    // Spawn a thread to send messages
+    let sender = thread::spawn(move || {
+        tx.send("Hello from thread!".to_string()).unwrap();
+        tx.send("Another message".to_string()).unwrap();
+    });
+
+    // Receive messages in main thread
+    while let Ok(msg) = rx.recv() {
+        println!("Received: {}", msg);
+    }
+
+    sender.join().unwrap();
+}
+```
+
+### Bounded vs Unbounded Channels
+
+**Bounded Channels:**
+
+```rust
+// Channel with capacity of 5
+let (tx, rx) = bounded::<i32>(5);
+
+// Sender will block when channel is full
+tx.send(1).unwrap();
+tx.send(2).unwrap();
+// ... blocks when full
+```
+
+**Unbounded Channels:**
+
+```rust
+// Channel that can hold unlimited messages
+let (tx, rx) = unbounded::<i32>();
+
+// Sender never blocks
+for i in 0..1000 {
+    tx.send(i).unwrap(); // Never blocks
+}
+```
+
+### Multiple Senders and Receivers
+
+Channels support multiple senders and receivers:
+
+```rust
+use crossbeam_channel::{unbounded, Sender, Receiver};
+use std::thread;
+
+fn main() {
+    let (tx, rx) = unbounded::<String>();
+
+    // Multiple senders
+    let tx1 = tx.clone();
+    let tx2 = tx.clone();
+
+    // Multiple receivers
+    let rx1 = rx.clone();
+    let rx2 = rx.clone();
+
+    // Spawn sender threads
+    let sender1 = thread::spawn(move || {
+        tx1.send("From sender 1".to_string()).unwrap();
+    });
+
+    let sender2 = thread::spawn(move || {
+        tx2.send("From sender 2".to_string()).unwrap();
+    });
+
+    // Spawn receiver threads
+    let receiver1 = thread::spawn(move || {
+        while let Ok(msg) = rx1.recv() {
+            println!("Receiver 1 got: {}", msg);
+        }
+    });
+
+    let receiver2 = thread::spawn(move || {
+        while let Ok(msg) = rx2.recv() {
+            println!("Receiver 2 got: {}", msg);
+        }
+    });
+
+    // Drop original sender to close channel
+    drop(tx);
+
+    sender1.join().unwrap();
+    sender2.join().unwrap();
+    receiver1.join().unwrap();
+    receiver2.join().unwrap();
+}
+```
+
+### Practical Example: Cafeteria Workers
+
+```rust
+use crossbeam_channel::{unbounded, Sender, Receiver};
+use std::thread;
+use std::time::Duration;
+
+#[derive(Debug)]
+enum Lunch {
+    Soup,
+    Salad,
+    Sandwich,
+    Hotdog,
+}
+
+fn cafeteria_worker(
+    name: &str,
+    orders_rx: Receiver<&str>,
+    lunches_tx: Sender<Lunch>,
+) {
+    for order in orders_rx {
+        println!("{} received order: {}", name, order);
+
+        // Convert order to lunch
+        let lunch = match order {
+            x if x.contains("soup") => Lunch::Soup,
+            x if x.contains("salad") => Lunch::Salad,
+            x if x.contains("sandwich") => Lunch::Sandwich,
+            _ => Lunch::Hotdog, // Default
+        };
+
+        // Simulate preparation time
+        thread::sleep(Duration::from_millis(100 * order.len() as u64));
+
+        println!("{} sending: {:?}", name, lunch);
+        if lunches_tx.send(lunch).is_err() {
+            break; // Channel closed
+        }
+    }
+}
+
+fn main() {
+    // Create channels
+    let (orders_tx, orders_rx) = unbounded::<&str>();
+    let (lunches_tx, lunches_rx) = unbounded::<Lunch>();
+
+    // Clone for multiple workers
+    let orders_rx1 = orders_rx.clone();
+    let lunches_tx1 = lunches_tx.clone();
+
+    // Spawn worker threads
+    let worker1 = thread::spawn(move || {
+        cafeteria_worker("Alice", orders_rx, lunches_tx);
+    });
+
+    let worker2 = thread::spawn(move || {
+        cafeteria_worker("Bob", orders_rx1, lunches_tx1);
+    });
+
+    // Send orders
+    let orders = vec!["caesar salad", "tomato soup", "turkey sandwich"];
+    for order in orders {
+        println!("Sending order: {}", order);
+        orders_tx.send(order).unwrap();
+    }
+
+    // Close orders channel
+    drop(orders_tx);
+
+    // Receive lunches
+    for lunch in lunches_rx {
+        println!("Received lunch: {:?}", lunch);
+    }
+
+    worker1.join().unwrap();
+    worker2.join().unwrap();
+}
+```
+
+### Channel Patterns
+
+**Iterating Over Messages:**
+
+```rust
+// Receiver implements IntoIterator
+for message in rx {
+    println!("Received: {}", message);
+}
+```
+
+**Non-blocking Receives:**
+
+```rust
+use crossbeam_channel::TryRecvError;
+
+match rx.try_recv() {
+    Ok(msg) => println!("Got message: {}", msg),
+    Err(TryRecvError::Empty) => println!("No messages"),
+    Err(TryRecvError::Disconnected) => println!("Channel closed"),
+}
+```
+
+**Selecting from Multiple Channels:**
+
+```rust
+use crossbeam_channel::{select, unbounded};
+
+let (tx1, rx1) = unbounded::<i32>();
+let (tx2, rx2) = unbounded::<String>();
+
+select! {
+    recv(rx1) -> msg => println!("Got number: {:?}", msg),
+    recv(rx2) -> msg => println!("Got string: {:?}", msg),
+}
+```
+
+### Best Practices
+
+**Channel Design:**
+
+- **Use bounded channels** for backpressure and memory safety
+- **Avoid circular channel patterns** to prevent deadlocks
+- **Design as directed acyclic graphs** for predictable flow
+- **Close channels explicitly** to signal completion
+
+**Performance Considerations:**
+
+- **Crossbeam channels** are faster than standard library channels
+- **Bounded channels** provide automatic backpressure
+- **Multiple receivers** distribute work automatically
+- **Channel cloning** is cheap and efficient
+
+**Error Handling:**
+
+- **Check send/recv results** for channel closure
+- **Handle disconnection gracefully** in worker threads
+- **Use try_recv()** for non-blocking operations
+- **Implement proper cleanup** when channels close
+
+### Practical Exercise Examples
+
+The exercise demonstrates comprehensive thread and channel patterns:
+
+```rust
+use crossbeam_channel::{unbounded, Sender, Receiver};
+use std::thread;
+use std::time::Duration;
+
+// Helper function for sleeping
+fn sleep_ms(ms: f32) {
+    thread::sleep(Duration::from_millis(ms as u64));
+}
+
+// Expensive computation to run in thread
+fn expensive_sum(numbers: Vec<i32>) -> i32 {
+    sleep_ms(500.0); // Simulate work
+    numbers.iter().sum()
+}
+
+fn main() {
+    let my_vector = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+    // 1. Spawn thread and get join handle
+    let handle = thread::spawn(move || {
+        expensive_sum(my_vector)
+    });
+
+    // Main thread continues working
+    for letter in ['A', 'B', 'C', 'D', 'E', 'F'] {
+        println!("Processing letter: {}", letter);
+        sleep_ms(200.0);
+    }
+
+    // 2. Retrieve value from thread
+    let result = handle.join().unwrap();
+    let sum = result.unwrap();
+    println!("Child thread's expensive sum is: {}", sum);
+
+    // 3. Create channels for communication
+    let (tx, rx) = unbounded::<&str>();
+    let tx_clone = tx.clone();
+
+    // 4. Spawn threads with channels
+    let handle_a = thread::spawn(move || {
+        sleep_ms(0.0); // No delay
+        tx.send("Thread A1").unwrap();
+        sleep_ms(200.0);
+        tx.send("Thread A2").unwrap();
+    });
+
+    sleep_ms(100.0); // Main thread delay
+
+    let handle_b = thread::spawn(move || {
+        sleep_ms(0.0); // No delay
+        tx_clone.send("Thread B1").unwrap();
+        sleep_ms(200.0);
+        tx_clone.send("Thread B2").unwrap();
+    });
+
+    // 5. Receive messages using iterator
+    for message in rx {
+        println!("Received: {}", message);
+    }
+
+    // 6. Join threads cleanly
+    handle_a.join().unwrap();
+    handle_b.join().unwrap();
+}
+```
+
+**Execution Flow:**
+
+1. **Main thread** processes letters with delays
+2. **Child thread** performs expensive computation concurrently
+3. **Thread A** sends messages immediately and after 200ms delay
+4. **Thread B** starts 100ms later, sends messages with delays
+5. **Main thread** receives all messages using channel iterator
+6. **All threads** are joined cleanly before program exit
+
+**Output Order Variations:**
+
+- **Default timing:** Thread A1, Thread B1, Thread A2, Thread B2
+- **With Thread A delay:** Thread B1, Thread B2, Thread A1, Thread A2
+- **Concurrent execution** allows for different interleaving patterns
 
 ## Testing
 
@@ -1792,1021 +2800,6 @@ RUST_LOG=info cargo run
 # All levels including debug and trace
 RUST_LOG=trace cargo run
 ```
-
-## Collections
-
-Collections are data structures that hold multiple values. Rust's standard library provides several collection types, each optimized for different use cases.
-
-### Vectors (`Vec<T>`)
-
-Vectors are the most commonly used collection, similar to arrays or lists in other languages. They store values of the same type in contiguous memory.
-
-```rust
-// Creating vectors
-let mut numbers: Vec<i32> = Vec::new();
-numbers.push(1);
-numbers.push(2);
-numbers.push(3);
-
-// Using the vec! macro for initialization
-let numbers = vec![1, 2, 3, 4, 5];
-
-// Accessing elements
-let first = numbers[0];               // Indexing (panics if out of bounds)
-let first = numbers.get(0);           // Returns Option<&i32>
-
-// Stack operations
-numbers.push(6);                      // Add to end
-let last = numbers.pop();             // Remove and return last element
-
-// Common methods
-numbers.insert(1, 10);                // Insert at index
-numbers.remove(1);                    // Remove at index
-numbers.sort();                       // Sort in place
-```
-
-### HashMaps (`HashMap<K, V>`)
-
-HashMaps store key-value pairs with constant-time lookup, similar to dictionaries in other languages.
-
-```rust
-use std::collections::HashMap;
-
-let mut scores = HashMap::new();
-scores.insert("Alice", 100);
-scores.insert("Bob", 85);
-
-// Accessing values
-let alice_score = scores.get("Alice"); // Returns Option<&i32>
-let alice_score = scores["Alice"];     // Panics if key doesn't exist
-
-// Updating values
-scores.insert("Alice", 95);            // Overwrites existing value
-scores.entry("Charlie").or_insert(0);  // Insert if not exists
-
-// Iterating
-for (name, score) in &scores {
-    println!("{}: {}", name, score);
-}
-```
-
-### Other Collections
-
-- **`VecDeque<T>`** - Double-ended queue (ring buffer)
-- **`LinkedList<T>`** - Linked list (slow for most operations)
-- **`HashSet<T>`** - Set with hash-based lookup
-- **`BinaryHeap<T>`** - Priority queue (max-heap)
-- **`BTreeMap<K, V>`** - Sorted map using B-tree
-- **`BTreeSet<T>`** - Sorted set using B-tree
-
-## Enums
-
-Enums in Rust are algebraic data types that can hold different variants, each potentially containing different data. They're more powerful than C-style enums and can represent complex data structures.
-
-### Basic Enum Syntax
-
-```rust
-enum DispenserItem {
-    Empty,
-    Ammo(u8),
-    Things(String, i32),
-    Place { x: i32, y: i32 },
-}
-
-// Using enum variants
-let item = DispenserItem::Ammo(5);
-let place = DispenserItem::Place { x: 10, y: 20 };
-```
-
-### Pattern Matching
-
-Enums require pattern matching to access their data safely.
-
-```rust
-// if let - for single variant matching
-if let DispenserItem::Ammo(count) = item {
-    println!("Got {} ammo", count);
-}
-
-// match - for exhaustive pattern matching
-match item {
-    DispenserItem::Empty => println!("Empty"),
-    DispenserItem::Ammo(count) => println!("Got {} ammo", count),
-    DispenserItem::Things(name, count) => println!("Got {} {}", count, name),
-    DispenserItem::Place { x, y } => println!("At position ({}, {})", x, y),
-}
-```
-
-### Option Enum
-
-`Option<T>` represents a value that might be present or absent, replacing null/nil from other languages.
-
-```rust
-// Option is in the prelude (no need to import)
-let some_number: Option<i32> = Some(5);
-let no_number: Option<i32> = None;
-
-// Pattern matching with Option
-match some_number {
-    Some(value) => println!("Got: {}", value),
-    None => println!("No value"),
-}
-
-// Helper methods
-if some_number.is_some() {
-    println!("Has value: {}", some_number.unwrap());
-}
-
-// Option implements IntoIterator
-for value in some_number {
-    println!("Value: {}", value);
-}
-```
-
-### Result Enum
-
-`Result<T, E>` represents success or failure, commonly used for error handling.
-
-```rust
-use std::fs::File;
-
-// File operations return Result
-let file_result = File::open("example.txt");
-
-// Must handle Result (compiler warning if ignored)
-match file_result {
-    Ok(file) => println!("File opened successfully"),
-    Err(error) => println!("Error: {}", error),
-}
-
-// Common methods
-let file = file_result.unwrap();      // Panics on error
-let file = file_result.expect("Failed to open file");  // Panics with message
-
-// Helper methods
-if file_result.is_ok() {
-    let file = file_result.unwrap();
-}
-```
-
-**Key Features:** Enums are algebraic data types that are more powerful than C-style enums, supporting pattern matching that is exhaustive and safe. They provide generic support to hold any type and can implement methods like structs. Enums eliminate null values by using `Option` to represent presence or absence, and `Result` for error handling with success or failure outcomes.
-
-```rust
-// Practical example combining enums and collections
-enum Shot {
-    Bullseye,
-    Hit(f64),    // Distance from center
-    Miss,
-}
-
-impl Shot {
-    fn points(&self) -> i32 {
-        match self {
-            Shot::Bullseye => 5,
-            Shot::Hit(distance) if *distance < 3.0 => 2,
-            Shot::Hit(_) => 1,
-            Shot::Miss => 0,
-        }
-    }
-}
-
-// Using with collections
-let mut shots = Vec::new();
-shots.push(Shot::Hit(1.2));          // 2 points
-shots.push(Shot::Hit(4.3));          // 1 point
-shots.push(Shot::Bullseye);          // 5 points
-
-let total: i32 = shots.iter().map(|shot| shot.points()).sum();
-```
-
-## Closures
-
-Closures are anonymous functions that can capture values from their enclosing scope. They're commonly used with iterators, threading, and functional programming patterns.
-
-### Basic Closure Syntax
-
-```rust
-// Simple closure with parameters
-let add = |x, y| x + y;
-let result = add(1, 2);               // 3
-
-// Closure with no parameters
-let get_five = || 5;
-let five = get_five();                // 5
-
-// Closure capturing from scope
-let message = String::from("Hello");
-let print_message = || println!("{}", message);
-print_message();                      // Prints "Hello"
-```
-
-### Move Closures
-
-Closures can take ownership of captured values using the `move` keyword.
-
-```rust
-let data = vec![1, 2, 3, 4, 5];
-
-// Borrowing closure (captures reference)
-let sum_ref = || {
-    let total: i32 = data.iter().sum();
-    println!("Sum: {}", total);
-};
-
-// Moving closure (takes ownership)
-let sum_move = move || {
-    let total: i32 = data.iter().sum();
-    println!("Sum: {}", total);
-};
-
-// Can be sent to threads or returned from functions
-```
-
-### Functional Programming with Closures
-
-Closures are essential for functional programming patterns with iterators.
-
-```rust
-let numbers = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
-let result: i32 = numbers
-    .iter()
-    .map(|x| x * 3)                   // Multiply each by 3
-    .filter(|x| x > &10)              // Keep values > 10
-    .fold(0, |acc, x| acc + x);       // Sum remaining values
-
-println!("Result: {}", result);       // 45 (15 + 18 + 21 + 24 + 27 + 30)
-```
-
-**Key Features:** Closures are anonymous functions that eliminate the need to define separate functions, with type inference automatically determining parameter and return types. They can capture variables from their enclosing scope and support move semantics to take ownership of captured values. Closures work seamlessly with iterator methods like `map`, `filter`, and `fold`, and move closures can be safely sent between threads.
-
-### Advanced Closure Concepts
-
-**Type Inference:** The compiler automatically determines argument and return types based on how the closure is used, eliminating the need for explicit type annotations in most cases.
-
-**Borrowing vs Moving:** Closures automatically borrow references to values in their enclosing scope by default. Use the `move` keyword to take ownership of captured values, which is essential for sending closures to threads or returning them from functions.
-
-```rust
-// Automatic borrowing (default behavior)
-let s = String::from("strawberry");
-let f = || println!("{}", s);  // Borrows reference to s
-f();  // Prints "strawberry"
-println!("{}", s);  // Still accessible
-
-// Move semantics
-let s = String::from("strawberry");
-let f = move || println!("{}", s);  // Takes ownership of s
-f();  // Prints "strawberry"
-// println!("{}", s);  // Error: s moved into closure
-
-// Clone for shared access
-let s = String::from("strawberry");
-let s_clone = s.clone();
-let f = move || println!("{}", s_clone);  // Uses clone
-f();  // Prints "strawberry"
-println!("{}", s);  // Original still accessible
-```
-
-**Function Types:** When passing closures to or from functions, you may need to specify closure types using traits from `std::ops`: `Fn`, `FnMut`, and `FnOnce`. These are advanced traits that determine how the closure captures and uses its environment.
-
-## Iterators
-
-Iterators are the foundation of Rust's functional programming capabilities, providing lazy evaluation and efficient data processing. They work seamlessly with closures to create powerful data transformation pipelines.
-
-### Basic Iterator Usage
-
-```rust
-let numbers = vec![1, 2, 3, 4, 5];
-
-// Basic iteration
-for num in &numbers {
-    println!("{}", num);
-}
-
-// Functional style with iterators
-numbers.iter()
-    .map(|x| x * 2)
-    .filter(|x| x > &5)
-    .for_each(|x| println!("{}", x));
-```
-
-### Iterator Types
-
-There are three main types of iterators depending on how they access collection data:
-
-```rust
-let mut numbers = vec![1, 2, 3, 4, 5];
-
-// into_iter() - Takes ownership (consumes collection)
-for num in numbers.into_iter() {
-    println!("{}", num);
-}
-// numbers is no longer available
-
-// iter() - Borrows immutably (preserves collection)
-let numbers = vec![1, 2, 3, 4, 5];
-for num in numbers.iter() {
-    println!("{}", num);  // num is &i32
-}
-// numbers is still available
-
-// iter_mut() - Borrows mutably (allows modification)
-let mut numbers = vec![1, 2, 3, 4, 5];
-for num in numbers.iter_mut() {
-    *num *= 2;  // num is &mut i32
-}
-// numbers is now [2, 4, 6, 8, 10]
-```
-
-### Syntactic Sugar
-
-For loops automatically use the appropriate iterator method:
-
-```rust
-let numbers = vec![1, 2, 3, 4, 5];
-
-// These are equivalent:
-for num in &numbers { /* ... */ }        // iter()
-for num in &mut numbers { /* ... */ }    // iter_mut()
-for num in numbers { /* ... */ }         // into_iter()
-```
-
-### Iterator Adapters vs Consumers
-
-Iterator adapters transform iterators without consuming them, while consumers actually process the data.
-
-```rust
-let numbers = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
-// Iterator adapters (lazy - no processing yet)
-let transformed = numbers
-    .into_iter()
-    .map(|x| x * 3)           // Transform each item
-    .filter(|x| x % 2 == 0);  // Keep only even numbers
-
-// Iterator consumer (triggers processing)
-let result: i32 = transformed.sum();  // Actually processes the data
-println!("{}", result);  // 90 (sum of 6, 12, 18, 24, 30)
-```
-
-### The Turbofish (`::<>`)
-
-Used to specify generic types when the compiler can't infer them:
-
-```rust
-let numbers = vec![1, 2, 3, 4, 5];
-
-// Without turbofish (compiler error)
-// let sum = numbers.iter().sum();
-
-// With turbofish (explicit type)
-let sum: i32 = numbers.iter().sum();
-let sum = numbers.iter().sum::<i32>();
-
-// With collect (needs type annotation)
-let doubled: Vec<i32> = numbers.iter().map(|x| x * 2).collect();
-let doubled = numbers.iter().map(|x| x * 2).collect::<Vec<_>>();
-```
-
-### Drain Method
-
-Removes items from a collection without consuming the collection itself:
-
-```rust
-let mut numbers = vec![1, 2, 3, 4, 5];
-
-// Drain all items
-for num in numbers.drain(..) {
-    println!("Drained: {}", num);
-}
-// numbers is now empty but still usable
-
-use std::collections::HashMap;
-let mut map = HashMap::new();
-map.insert("a", 1);
-map.insert("b", 2);
-
-// Drain all key-value pairs
-for (key, value) in map.drain() {
-    println!("Drained: {} = {}", key, value);
-}
-// map is now empty but still usable
-```
-
-**Key Features:** Iterators are lazy and only process items when consumed. They provide a functional programming approach to data processing with methods like `map`, `filter`, `fold`, and `sum`. Iterators can be chained together to create complex data transformations, and they're often more efficient than traditional loops due to compiler optimizations.
-
-### Practical Exercise Examples
-
-The exercise demonstrates comprehensive closure and iterator usage:
-
-```rust
-// 1. Basic closure creation
-let square = |x| x * x;
-println!("5 squared is {}", square(5));  // 25
-
-// 2. Iterator with tuple destructuring
-let tuples = vec![(0, 1), (2, 3), (4, 5)];
-let result: Vec<_> = tuples
-    .into_iter()
-    .map(|(x, y)| (x + 1, y))  // Destructure tuple in parameter
-    .collect();
-// Result: [(1, 1), (3, 3), (5, 5)]
-
-// 3. Mutable iteration with syntactic sugar
-let mut numbers = vec![1, 2, 3, 4];
-for x in &mut numbers {
-    *x *= 3;  // Equivalent to: x *= 3;
-}
-// numbers is now [3, 6, 9, 12]
-
-// 4. Complex iterator chain
-let words = vec!["hello", "world", "rust", "programming"];
-let filtered_words: Vec<_> = words
-    .into_iter()                    // Convert to iterator
-    .filter(|s| !s.contains('h'))   // Remove words with 'h'
-    .map(|w| w.to_uppercase())      // Convert to uppercase
-    .collect();                     // Collect into vector
-// Result: ["WORLD", "RUST", "PROGRAMMING"]
-```
-
-**Key Patterns Demonstrated:**
-
-- **Closure syntax** with parameter destructuring
-- **Iterator chaining** with multiple adapters
-- **Mutable iteration** using `&mut` syntactic sugar
-- **Complex transformations** combining filter and map
-- **Type inference** with turbofish when needed
-
-## Threads
-
-Rust provides portable threading that works across different platforms (macOS, Linux, Windows). Threads allow concurrent execution and can run simultaneously on multiple CPU cores.
-
-### Thread Fundamentals
-
-Every process starts with a single **main thread**. You can spawn additional threads to perform parallel processing, which is especially beneficial on multi-core systems.
-
-**Why Use Threads:**
-
-Threads provide **parallel processing** by utilizing multiple CPU cores simultaneously, **shared memory** since threads in the same process can share memory, **cost efficiency** as threads are cheaper than processes, and **performance** benefits by potentially running twice as fast on dual-core systems (minus communication overhead).
-
-### Basic Threading
-
-```rust
-use std::thread;
-
-fn main() {
-    // Spawn a new thread
-    let handle = thread::spawn(|| {
-        println!("Hello from thread!");
-        42  // Return value from thread
-    });
-
-    // Do work in main thread
-    println!("Hello from main thread!");
-
-    // Wait for spawned thread to complete
-    let result = handle.join().unwrap();
-    println!("Thread returned: {}", result);
-}
-```
-
-### Thread Handles and Joining
-
-**Key Concepts:**
-
-The **`thread::spawn()`** function creates a new thread and returns a `JoinHandle`, which allows you to wait for thread completion and retrieve results. The **`join()`** method blocks until the thread completes and returns a `Result<T, E>`, and **thread cleanup** requires always joining threads to ensure clean termination.
-
-```rust
-use std::thread;
-
-fn main() {
-    let handle = thread::spawn(|| {
-        // Simulate some work
-        thread::sleep(std::time::Duration::from_secs(2));
-        "Thread completed successfully"
-    });
-
-    // Main thread continues while child thread runs
-    println!("Main thread doing other work...");
-
-    // Wait for child thread to complete
-    match handle.join() {
-        Ok(result) => println!("Thread result: {}", result),
-        Err(e) => println!("Thread panicked: {:?}", e),
-    }
-}
-```
-
-### Thread Return Values
-
-Threads can return any type that implements the `Send` trait:
-
-```rust
-use std::thread;
-
-fn main() {
-    let handle = thread::spawn(|| {
-        // Complex computation
-        let mut sum = 0;
-        for i in 1..=1000 {
-            sum += i;
-        }
-        sum
-    });
-
-    let result = handle.join().unwrap();
-    println!("Sum: {}", result);
-}
-```
-
-### Practical Example: Parallel Cooking
-
-```rust
-use std::thread;
-use std::time::Duration;
-
-mod dad {
-    use super::*;
-
-    pub fn cook_spaghetti() -> bool {
-        println!("Dad: Starting to cook spaghetti...");
-        thread::sleep(Duration::from_secs(4));
-        println!("Dad: Spaghetti is ready!");
-        true
-    }
-}
-
-mod mom {
-    use super::*;
-
-    pub fn cook_sauce_and_set_table() {
-        println!("Mom: Starting to cook sauce...");
-        thread::sleep(Duration::from_secs(2));
-        println!("Mom: Sauce is ready!");
-
-        println!("Mom: Setting the table...");
-        thread::sleep(Duration::from_secs(1));
-        println!("Mom: Table is set!");
-    }
-}
-
-fn main() {
-    // Spawn thread for dad's task
-    let spaghetti_handle = thread::spawn(dad::cook_spaghetti);
-
-    // Mom's task runs on main thread
-    mom::cook_sauce_and_set_table();
-
-    // Wait for dad to finish
-    let spaghetti_success = spaghetti_handle.join().unwrap();
-
-    if spaghetti_success {
-        println!("Dinner is ready!");
-    } else {
-        println!("Something went wrong with the spaghetti!");
-    }
-}
-```
-
-### Threads with Move Closures
-
-Threads often use move closures to take ownership of data.
-
-```rust
-use std::thread;
-
-fn main() {
-    let data = vec![1, 2, 3, 4, 5];
-
-    let handle = thread::spawn(move || {
-        // data is moved into this thread
-        let sum: i32 = data.iter().sum();
-        println!("Sum in thread: {}", sum);
-        sum
-    });
-
-    // data is no longer available in main thread
-    let result = handle.join().unwrap();
-    println!("Thread result: {}", result);
-}
-```
-
-### Thread Safety Considerations
-
-```rust
-use std::thread;
-use std::sync::{Arc, Mutex};
-
-fn main() {
-    let counter = Arc::new(Mutex::new(0));
-    let mut handles = vec![];
-
-    for _ in 0..10 {
-        let counter = Arc::clone(&counter);
-        let handle = thread::spawn(move || {
-            let mut num = counter.lock().unwrap();
-            *num += 1;
-        });
-        handles.push(handle);
-    }
-
-    for handle in handles {
-        handle.join().unwrap();
-    }
-
-    println!("Final count: {}", *counter.lock().unwrap());
-}
-```
-
-### Thread Performance Considerations
-
-**Thread Overhead:**
-
-Threads have **memory allocation** costs as each thread allocates ~2MB for its stack, **context switching** overhead as the CPU must perform expensive context switches, and **scheduling overhead** that increases when more threads share a core.
-
-**When to Use Threads:**
-
-Threads are ideal for **CPU-intensive tasks** that benefit from parallel processing on multiple cores, **I/O operations** while waiting for disk/network (though async/await is more efficient), and **independent computations** where tasks can run simultaneously.
-
-**Best Practices:**
-
-Thread management requires **always joining threads** to ensure clean termination, **limiting thread count** by not creating more threads than CPU cores for CPU-bound tasks, **using async/await** for I/O-bound concurrent operations, and **considering thread pools** for managing many short-lived tasks.
-
-**Key Features:** Rust threads are portable across Mac, Linux, Windows, and other platforms, with join handles that can wait for thread completion and retrieve return values. The `join()` method returns `Result<T, E>` for proper panic handling, and threads can use move closures to take ownership of data. Threads are heavyweight, allocating several MB of stack memory each, with expensive context switching when many threads share CPU cores. They are best suited for CPU-bound computational tasks, while I/O-bound operations should consider async/await for better efficiency.
-
-```rust
-// Practical example combining closures and threads
-use std::thread;
-use std::time::Duration;
-
-fn expensive_sum(numbers: Vec<i32>) -> i32 {
-    thread::sleep(Duration::from_millis(500));  // Simulate work
-    numbers
-        .iter()
-        .filter(|&x| x % 2 != 0)                // Remove even numbers
-        .map(|&x| x * x)                        // Square remaining numbers
-        .sum()
-}
-
-fn main() {
-    let numbers = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
-    // Spawn thread with move closure
-    let handle = thread::spawn(move || {
-        expensive_sum(numbers)
-    });
-
-    // Main thread continues working
-    for letter in ['A', 'B', 'C', 'D', 'E', 'F'] {
-        println!("{}", letter);
-        thread::sleep(Duration::from_millis(200));
-    }
-
-    // Wait for thread completion and get result
-    let result = handle.join().unwrap();
-    println!("Thread result: {}", result);
-}
-```
-
-## Channels
-
-Channels provide a way for threads to communicate by sending messages. While the standard library has a channel implementation, the **crossbeam** crate provides a more efficient and feature-rich alternative.
-
-### Channel Fundamentals
-
-A channel is a one-way queue that threads use to send values to other threads. Values sent through channels must implement the `Send` trait, which the compiler automatically implements for most types.
-
-**Channel Types:**
-
-- **Bounded channels** have a fixed capacity and block when full, providing backpressure
-- **Unbounded channels** grow indefinitely until memory is exhausted
-
-### Crossbeam Channels
-
-```rust
-use crossbeam_channel::{unbounded, bounded, Sender, Receiver};
-use std::thread;
-
-fn main() {
-    // Create an unbounded channel
-    let (tx, rx) = unbounded::<String>();
-
-    // Spawn a thread to send messages
-    let sender = thread::spawn(move || {
-        tx.send("Hello from thread!".to_string()).unwrap();
-        tx.send("Another message".to_string()).unwrap();
-    });
-
-    // Receive messages in main thread
-    while let Ok(msg) = rx.recv() {
-        println!("Received: {}", msg);
-    }
-
-    sender.join().unwrap();
-}
-```
-
-### Bounded vs Unbounded Channels
-
-**Bounded Channels:**
-
-```rust
-// Channel with capacity of 5
-let (tx, rx) = bounded::<i32>(5);
-
-// Sender will block when channel is full
-tx.send(1).unwrap();
-tx.send(2).unwrap();
-// ... blocks when full
-```
-
-**Unbounded Channels:**
-
-```rust
-// Channel that can hold unlimited messages
-let (tx, rx) = unbounded::<i32>();
-
-// Sender never blocks
-for i in 0..1000 {
-    tx.send(i).unwrap(); // Never blocks
-}
-```
-
-### Multiple Senders and Receivers
-
-Channels support multiple senders and receivers:
-
-```rust
-use crossbeam_channel::{unbounded, Sender, Receiver};
-use std::thread;
-
-fn main() {
-    let (tx, rx) = unbounded::<String>();
-
-    // Multiple senders
-    let tx1 = tx.clone();
-    let tx2 = tx.clone();
-
-    // Multiple receivers
-    let rx1 = rx.clone();
-    let rx2 = rx.clone();
-
-    // Spawn sender threads
-    let sender1 = thread::spawn(move || {
-        tx1.send("From sender 1".to_string()).unwrap();
-    });
-
-    let sender2 = thread::spawn(move || {
-        tx2.send("From sender 2".to_string()).unwrap();
-    });
-
-    // Spawn receiver threads
-    let receiver1 = thread::spawn(move || {
-        while let Ok(msg) = rx1.recv() {
-            println!("Receiver 1 got: {}", msg);
-        }
-    });
-
-    let receiver2 = thread::spawn(move || {
-        while let Ok(msg) = rx2.recv() {
-            println!("Receiver 2 got: {}", msg);
-        }
-    });
-
-    // Drop original sender to close channel
-    drop(tx);
-
-    sender1.join().unwrap();
-    sender2.join().unwrap();
-    receiver1.join().unwrap();
-    receiver2.join().unwrap();
-}
-```
-
-### Practical Example: Cafeteria Workers
-
-```rust
-use crossbeam_channel::{unbounded, Sender, Receiver};
-use std::thread;
-use std::time::Duration;
-
-#[derive(Debug)]
-enum Lunch {
-    Soup,
-    Salad,
-    Sandwich,
-    Hotdog,
-}
-
-fn cafeteria_worker(
-    name: &str,
-    orders_rx: Receiver<&str>,
-    lunches_tx: Sender<Lunch>,
-) {
-    for order in orders_rx {
-        println!("{} received order: {}", name, order);
-
-        // Convert order to lunch
-        let lunch = match order {
-            x if x.contains("soup") => Lunch::Soup,
-            x if x.contains("salad") => Lunch::Salad,
-            x if x.contains("sandwich") => Lunch::Sandwich,
-            _ => Lunch::Hotdog, // Default
-        };
-
-        // Simulate preparation time
-        thread::sleep(Duration::from_millis(100 * order.len() as u64));
-
-        println!("{} sending: {:?}", name, lunch);
-        if lunches_tx.send(lunch).is_err() {
-            break; // Channel closed
-        }
-    }
-}
-
-fn main() {
-    // Create channels
-    let (orders_tx, orders_rx) = unbounded::<&str>();
-    let (lunches_tx, lunches_rx) = unbounded::<Lunch>();
-
-    // Clone for multiple workers
-    let orders_rx1 = orders_rx.clone();
-    let lunches_tx1 = lunches_tx.clone();
-
-    // Spawn worker threads
-    let worker1 = thread::spawn(move || {
-        cafeteria_worker("Alice", orders_rx, lunches_tx);
-    });
-
-    let worker2 = thread::spawn(move || {
-        cafeteria_worker("Bob", orders_rx1, lunches_tx1);
-    });
-
-    // Send orders
-    let orders = vec!["caesar salad", "tomato soup", "turkey sandwich"];
-    for order in orders {
-        println!("Sending order: {}", order);
-        orders_tx.send(order).unwrap();
-    }
-
-    // Close orders channel
-    drop(orders_tx);
-
-    // Receive lunches
-    for lunch in lunches_rx {
-        println!("Received lunch: {:?}", lunch);
-    }
-
-    worker1.join().unwrap();
-    worker2.join().unwrap();
-}
-```
-
-### Channel Patterns
-
-**Iterating Over Messages:**
-
-```rust
-// Receiver implements IntoIterator
-for message in rx {
-    println!("Received: {}", message);
-}
-```
-
-**Non-blocking Receives:**
-
-```rust
-use crossbeam_channel::TryRecvError;
-
-match rx.try_recv() {
-    Ok(msg) => println!("Got message: {}", msg),
-    Err(TryRecvError::Empty) => println!("No messages"),
-    Err(TryRecvError::Disconnected) => println!("Channel closed"),
-}
-```
-
-**Selecting from Multiple Channels:**
-
-```rust
-use crossbeam_channel::{select, unbounded};
-
-let (tx1, rx1) = unbounded::<i32>();
-let (tx2, rx2) = unbounded::<String>();
-
-select! {
-    recv(rx1) -> msg => println!("Got number: {:?}", msg),
-    recv(rx2) -> msg => println!("Got string: {:?}", msg),
-}
-```
-
-### Best Practices
-
-**Channel Design:**
-
-- **Use bounded channels** for backpressure and memory safety
-- **Avoid circular channel patterns** to prevent deadlocks
-- **Design as directed acyclic graphs** for predictable flow
-- **Close channels explicitly** to signal completion
-
-**Performance Considerations:**
-
-- **Crossbeam channels** are faster than standard library channels
-- **Bounded channels** provide automatic backpressure
-- **Multiple receivers** distribute work automatically
-- **Channel cloning** is cheap and efficient
-
-**Error Handling:**
-
-- **Check send/recv results** for channel closure
-- **Handle disconnection gracefully** in worker threads
-- **Use try_recv()** for non-blocking operations
-- **Implement proper cleanup** when channels close
-
-### Practical Exercise Examples
-
-The exercise demonstrates comprehensive thread and channel patterns:
-
-```rust
-use crossbeam_channel::{unbounded, Sender, Receiver};
-use std::thread;
-use std::time::Duration;
-
-// Helper function for sleeping
-fn sleep_ms(ms: f32) {
-    thread::sleep(Duration::from_millis(ms as u64));
-}
-
-// Expensive computation to run in thread
-fn expensive_sum(numbers: Vec<i32>) -> i32 {
-    sleep_ms(500.0); // Simulate work
-    numbers.iter().sum()
-}
-
-fn main() {
-    let my_vector = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
-    // 1. Spawn thread and get join handle
-    let handle = thread::spawn(move || {
-        expensive_sum(my_vector)
-    });
-
-    // Main thread continues working
-    for letter in ['A', 'B', 'C', 'D', 'E', 'F'] {
-        println!("Processing letter: {}", letter);
-        sleep_ms(200.0);
-    }
-
-    // 2. Retrieve value from thread
-    let result = handle.join().unwrap();
-    let sum = result.unwrap();
-    println!("Child thread's expensive sum is: {}", sum);
-
-    // 3. Create channels for communication
-    let (tx, rx) = unbounded::<&str>();
-    let tx_clone = tx.clone();
-
-    // 4. Spawn threads with channels
-    let handle_a = thread::spawn(move || {
-        sleep_ms(0.0); // No delay
-        tx.send("Thread A1").unwrap();
-        sleep_ms(200.0);
-        tx.send("Thread A2").unwrap();
-    });
-
-    sleep_ms(100.0); // Main thread delay
-
-    let handle_b = thread::spawn(move || {
-        sleep_ms(0.0); // No delay
-        tx_clone.send("Thread B1").unwrap();
-        sleep_ms(200.0);
-        tx_clone.send("Thread B2").unwrap();
-    });
-
-    // 5. Receive messages using iterator
-    for message in rx {
-        println!("Received: {}", message);
-    }
-
-    // 6. Join threads cleanly
-    handle_a.join().unwrap();
-    handle_b.join().unwrap();
-}
-```
-
-**Execution Flow:**
-
-1. **Main thread** processes letters with delays
-2. **Child thread** performs expensive computation concurrently
-3. **Thread A** sends messages immediately and after 200ms delay
-4. **Thread B** starts 100ms later, sends messages with delays
-5. **Main thread** receives all messages using channel iterator
-6. **All threads** are joined cleanly before program exit
-
-**Output Order Variations:**
-
-- **Default timing:** Thread A1, Thread B1, Thread A2, Thread B2
-- **With Thread A delay:** Thread B1, Thread B2, Thread A1, Thread A2
-- **Concurrent execution** allows for different interleaving patterns
 
 ## Idiomatic Code
 
