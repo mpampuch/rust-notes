@@ -148,7 +148,7 @@ There are two solutions:
 
 ```rust
 fn square(num: i32) -> i32 {
-    num * num;
+    num * num
 }
 
 fn main() {
