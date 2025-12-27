@@ -122,6 +122,41 @@ Tail expressions automatically return values when the semicolon is omitted from 
 
 Common function mistakes include scope issues where variables defined in inner blocks are not accessible outside, and forgetting to use tail expressions instead of explicit return statements. The `cargo clippy` tool can identify non-idiomatic code patterns.
 
+### Semicolons
+
+Rust distinguishes between expressions and statements:
+- Expressions return a value based on their operand(s)
+- Statements simply return a `()` type which behaves just like `void` in C/C++.
+
+In the below example, we want to return a value with the type `i32` from the `square` function, but
+it is returning the type `()`.
+
+```rust
+fn square(num: i32) -> i32 {
+    num * num;
+}
+
+fn main() {
+    let answer = square(3);
+    println!("The square of 3 is {answer}");
+}
+```
+
+There are two solutions:
+1. Add the `return` keyword before `num * num;`
+2. Remove the semicolon `;` after `num * num`
+
+```rust
+fn square(num: i32) -> i32 {
+    num * num;
+}
+
+fn main() {
+    let answer = square(3);
+    println!("The square of 3 is {answer}");
+}
+```
+
 ## Module System
 
 Rust's module system organizes code into libraries and binaries, with `lib.rs` serving as the root library file and `main.rs` as the binary entry point. All items in libraries are private by default and must be marked with `pub` to be accessible from other modules.
