@@ -2,6 +2,13 @@
 
 Some tips / things of notes for myself while I'm learning rust
 
+## To add:
+
+- to_do! macro
+- 2 different kinds of macros `#` and `!`. One is **hygenic** (you don't pollute the namespace and you operate on tokens instead of the AST.) You can't produce invalid Rust code from one of these macros.
+- crates for array comprehension in rust exist and very helpful. Generating data (like trying to get a random integer) in rust is super annoying.
+- 
+
 ## What is Rust
 
 Rust is a systems programming language that pursues the trifecta of safety (guaranteed at compile time), fearless concurrency (easier when things are safe), and blazingly fast speed (due to zero-cost abstractions). Unlike high-level languages that offer safety but lack speed and concurrency, or systems languages like C/C++ that offer speed and concurrency but lack safety, Rust provides all three benefits simultaneously.
