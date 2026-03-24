@@ -176,6 +176,15 @@ This tells Rust:
 
 > The returned reference is guaranteed to live at least as long as both `x` and `y`.
 
+Lifetimes are also needed when structs hold references.
+
+```rust
+struct Book<'a> {
+    author: &'a str,
+    title: &'a str,
+}
+```
+
 ### Rebinding to Shorter Lifetimes
 
 If you have a variable with a longer lifetime, you can safely reassign (or rebind) it to reference data with a shorter lifetime—as long as you only use it within that shorter lifetime.
