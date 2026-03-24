@@ -102,6 +102,68 @@ println!("{}", enigma);              // Safe to use
 
 The compiler cannot reason about conditional initialization at compile time, so variables must be guaranteed to be initialized through all possible code paths. This prevents the undefined behavior that occurs when using uninitialized variables in other systems languages.
 
+## Lifetimes
+
+Lifetimes are Rust’s way of ensuring that references are always valid. Instead of relying on a garbage collector, Rust uses a system of borrow checking to track how long references to data are allowed to exist.
+
+Every reference in Rust has a lifetime, which represents the scope for which that reference is valid. The compiler checks that a reference never outlives the data it points to, preventing issues like dangling pointers.
+
+```rust
+let r;
+{
+    let x = 5;
+    r = &x;              // Error: `x` does not live long enough
+}                        // `x` is dropped here
+// println!("{}", r);    // Would be unsafe, so Rust forbids it
+```
+
+In this example, `r` would point to `x`, but `x` goes out of scope before `r` is used. Rust detects this at compile time and prevents it.
+
+### Explicit Lifetimes
+
+In many cases, Rust can infer lifetimes automatically. However, when working with functions that involve multiple references, you may need to annotate lifetimes explicitly to describe how they relate:
+
+```rust
+fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+    if x.len() > y.len() { x } else { y }
+}
+```
+
+Here, `'a` is a lifetime parameter that ensures the returned reference is valid as long as both inputs are valid. It doesn’t change how long data lives—it only describes the relationships between references.
+
+### Rebinding to Shorter Lifetimes
+
+If you have a variable with a longer lifetime, you can safely reassign (or rebind) it to reference data with a shorter lifetime—as long as you only use it within that shorter lifetime.
+
+```rust
+let s1 = String::from("hello");
+let r: &str = &s1;
+
+{
+    let s2 = String::from("world");
+    let r = &s2;          // shadowing with shorter lifetime
+    println!("{}", r);    // OK
+} // `s2` is dropped here
+
+println!("{}", r);        // still refers to `s1`
+```
+
+This works because each binding respects its own scope. Rust prevents you from accidentally using a reference after its data has been dropped.
+
+### Rebinding to 'static Lifetimes
+
+You can also rebind a reference to something with a `'static` lifetime, which means the data lives for the entire duration of the program. String literals are the most common example of `'static` data.
+
+```rust
+let s = String::from("hello");
+let r: &str = &s;        // tied to `s`
+
+let r = "world";         // now `r` is &'static str
+println!("{}", r);       // always valid
+```
+
+Here, `"world"` is a string literal stored in the program’s binary, so it has a `'static` lifetime. *Rebinding like this is always safe because `'static` outlives all other lifetimes*.
+
 ## Functions
 
 Functions are defined using the `fn` keyword with snake_case naming convention, and function declarations can appear anywhere in the file regardless of call order. Parameters require explicit type annotations, and return types are specified with an arrow syntax.
@@ -721,7 +783,7 @@ if eat(word2) {                      // word2 consumed
 // println!("{}", word2);            // Error: word2 moved
 ```
 
-References and Borrowing
+## References and Borrowing
 
 References allow you to refer to a value without taking ownership, using the ampersand operator to create pointers that are automatically managed by the compiler. References are immutable by default and must follow the borrowing rules: **Variables can have either one mutable reference or any number of immutable references at a time.**
 
@@ -767,6 +829,35 @@ println!("{}", x);                   // 10
 ```
 
 References default to immutable even if the referenced value is mutable. The borrowing rule (one mutable reference OR any number of immutable references) applies across all threads and prevents data races. The compiler enforces these rules with informative error messages, ensuring memory safety without runtime overhead.
+
+### The `ref` Keyword
+
+The `ref` keyword is used in pattern matching to *borrow* a value instead of moving it. It allows you to create a reference to a value while destructuring.
+
+```rust
+let s = String::from("hello");
+
+match s {
+    ref r => println!("{}", r), // `r` is `&String`, not moved
+}
+
+// `s` is still valid here
+println!("{}", s);
+```
+
+Without `ref`, the value would be moved into the pattern, and you wouldn’t be able to use it afterward.
+
+You’ll commonly see `ref` (and `ref mut`) in patterns like `match`, `if let`, and `while let` when you want to borrow instead of take ownership:
+
+```rust
+let option = Some(String::from("hi"));
+
+if let Some(ref s) = option {
+    println!("{}", s); // borrow the inner value
+}
+
+// `option` is still usable here
+```
 
 ## Structs
 
