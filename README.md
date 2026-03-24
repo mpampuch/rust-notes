@@ -1051,6 +1051,85 @@ println!("{:?}", grapes);            // Grapes { amount_left: 99 }
 
 The `impl` block defines all behavior for a struct, separating data definition from implementation. This pattern of defining data with `struct` and behavior with `impl` is the standard way to create custom types in Rust.
 
+
+### The `impl<T>` Syntax
+
+```rust
+impl<T> Wrapper<T> {  
+    fn new(value: T) -> Self {  
+        Wrapper { value }  
+    }  
+}
+```
+
+1. `impl<T>` says: **“I’m implementing methods for `Wrapper<T>`, where `T` can be any type.”**
+    
+2. Without `<T>`, Rust would **not know what `T` refers to**, because `T` only exists as a generic for the struct.
+    
+Think of it like this:
+
+* `struct Wrapper<T>` introduces `T` for the type itself.
+    
+* `impl<T>` **introduces `T` for the implementation block** so methods like `new` can use it.
+
+### The `self` and `Self` keywords
+
+
+In Rust, the keyword `self` has a specific meaning depending on **where it appears** but as a **method implementation**, this is how it works:
+
+In Rust, methods are functions that are associated with a type (via `impl`). The first parameter in a method is usually one of these forms:
+
+
+    
+
+    
+| Syntax | What it means | Can modify original? |
+| --- | --- | --- |
+| `self` | Take ownership | Yes (original is gone) |
+| `&self` | Borrow immutably | No |
+| `&mut self` | Borrow mutably | Yes |
+
+In this example:
+
+```rust
+fn append_bar(self) -> Self {  
+    self + "Bar"  
+}
+```
+
+* `self` here **consumes the original `String`**. After calling this method, you cannot use the original string anymore because ownership has been moved into the method.
+    
+* This is why it’s possible to do `self + "Bar"`. The `+` operator for `String` requires ownership of the left-hand side (`self`) and a `&str` on the right-hand side.
+    
+**`Self` (capital S)** refers to **the type that the `impl` block is implementing**.
+
+In the example:
+
+```rust
+impl AppendBar for String {  
+    fn append_bar(self) -> Self {  
+        self + "Bar"  
+    }  
+}
+```
+
+* Here, `Self` = `String`, because the `impl` block is for `String`.
+    
+* So this is equivalent to writing:
+    
+
+```rust
+fn append_bar(self) -> String {  
+    self + "Bar"  
+}
+```
+
+Using `Self` has advantages:
+
+1. **Generic code**: If the type changes, you don’t need to rewrite it in multiple places.
+    
+2. **Readability**: Makes it clear that the method returns the same type it’s defined for.
+    
 ## Traits
 
 Traits define shared behavior that can be implemented by multiple types, serving as Rust's alternative to inheritance. They represent the "composition over inheritance" approach, defining required methods that implementing types must provide.
@@ -1223,25 +1302,6 @@ show(&puzzle);  // Works with reference, doesn't consume puzzle
 ```
 
 
-### The `impl<T>` Syntax
-
-```rust
-impl<T> Wrapper<T> {  
-    fn new(value: T) -> Self {  
-        Wrapper { value }  
-    }  
-}
-```
-
-1. `impl<T>` says: **“I’m implementing methods for `Wrapper<T>`, where `T` can be any type.”**
-    
-2. Without `<T>`, Rust would **not know what `T` refers to**, because `T` only exists as a generic for the struct.
-    
-Think of it like this:
-
-* `struct Wrapper<T>` introduces `T` for the type itself.
-    
-* `impl<T>` **introduces `T` for the implementation block** so methods like `new` can use it.
 
 #### `From`
 
