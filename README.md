@@ -1457,7 +1457,7 @@ This is basically saying:
 **"Each piece of software can be any type, as long as it implements the `Licensed` trait."**
 
 
-### **Equivalent Generic Syntax**
+#### Equivalent Generic Syntax
 
 The same function can also be written using a generic type parameter:
 
@@ -1478,6 +1478,35 @@ fn compare_license_types<T: Licensed>(software1: T, software2: T) -> bool {
     
 ```rust
 fn create_software() -> impl Licensed { SomeSoftware }
+```
+
+These can also be stacked with the `+` syntax:
+
+```rust
+trait SomeTrait {
+    fn some_function(&self) -> bool {
+        true
+    }
+}
+
+trait OtherTrait {
+    fn other_function(&self) -> bool {
+        true
+    }
+}
+
+struct SomeStruct;
+impl SomeTrait for SomeStruct {}
+impl OtherTrait for SomeStruct {}
+
+struct OtherStruct;
+impl SomeTrait for OtherStruct {}
+impl OtherTrait for OtherStruct {}
+
+// impl Trait stacking with `+`
+fn some_func(item: impl SomeTrait + OtherTrait) -> bool {
+    item.some_function() && item.other_function()
+}
 ```
     
 ### Top 25 Rust Traits Cheat Sheet
