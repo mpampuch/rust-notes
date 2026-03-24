@@ -1452,6 +1452,10 @@ fn compare_license_types(software1: impl Licensed, software2: impl Licensed) -> 
 
 Here, `compare_license_types` can accept **any types** as long as they implement the `Licensed` trait.
 
+This is basically saying: 
+
+**"Each piece of software can be any type, as long as it implements the `Licensed` trait."**
+
 
 ### **Equivalent Generic Syntax**
 
