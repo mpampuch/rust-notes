@@ -1425,6 +1425,37 @@ if party1 == party2 {
 }
 ```
 
+### Top 25 Rust Traits Cheat Sheet
+
+| #  | Trait                           | Purpose                                     | Code Example                                                                                                          |   |                      |
+| -- | ------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | - | -------------------- |
+| 1  | **Copy**                        | Simple bitwise copy, no heap allocation     | `let x = 5; let y = x; // x still usable`                                                                             |   |                      |
+| 2  | **Clone**                       | Explicit deep copy for heap types           | `let s2 = s1.clone();`                                                                                                |   |                      |
+| 3  | **Debug**                       | Print type for debugging (`{:?}`)           | `#[derive(Debug)] struct P{ x:i32,y:i32 }; println!("{:?}", P{x:1,y:2});`                                             |   |                      |
+| 4  | **Display**                     | User-friendly output (`{}`)                 | `impl fmt::Display for P { fn fmt(&self,f:&mut fmt::Formatter)->fmt::Result { write!(f,"({}, {})",self.x,self.y) } }` |   |                      |
+| 5  | **PartialEq**                   | Equality comparison (`==`, `!=`)            | `#[derive(PartialEq)] struct P{i:i32}; let a=P{i:1}; let b=P{i:2}; println!("{}", a==b);`                             |   |                      |
+| 6  | **Eq**                          | Marker for full equality                    | `#[derive(Eq, PartialEq)] struct P{i:i32};`                                                                           |   |                      |
+| 7  | **PartialOrd**                  | Partial ordering (`<`, `>`)                 | `#[derive(PartialOrd, PartialEq)] struct P{i:i32};`                                                                   |   |                      |
+| 8  | **Ord**                         | Total ordering for sorting                  | `#[derive(Ord, PartialOrd, Eq, PartialEq)] struct P{i:i32};`                                                          |   |                      |
+| 9  | **Default**                     | Provides default value                      | `#[derive(Default)] struct Config{verbose:bool}; let c:Config=Default::default();`                                    |   |                      |
+| 10 | **Drop**                        | Custom cleanup on scope exit                | `impl Drop for Resource { fn drop(&mut self){ println!("cleanup"); } }`                                               |   |                      |
+| 11 | **Iterator**                    | Iterate over sequences                      | `let v=[1,2,3]; let doubled: Vec<_>=v.iter().map(                                                                     | x | x*2).collect();`     |
+| 12 | **From / Into**                 | Convert between types                       | `let s:String="hello".into(); let n:i32=5.into();`                                                                    |   |                      |
+| 13 | **AsRef / AsMut**               | Convert to reference types generically      | `fn len(s:impl AsRef<str>){ println!("{}",s.as_ref().len()); }`                                                       |   |                      |
+| 14 | **Borrow / BorrowMut**          | Use references as keys in collections       | `map.get("key")` works without cloning `String`                                                                       |   |                      |
+| 15 | **Hash**                        | Allow type as `HashMap` or `HashSet` key    | `#[derive(Hash, Eq, PartialEq)] struct User{id:u32};`                                                                 |   |                      |
+| 16 | **Deref / DerefMut**            | Treat smart pointers like normal references | `impl Deref for MyBox<T> { type Target=T; fn deref(&self)->&T{&self.0} }`                                             |   |                      |
+| 17 | **Add / Sub / Mul / Div / Rem** | Operator overloading                        | `impl Add for Vec2 { type Output=Vec2; fn add(self,o:Vec2)->Vec2{Vec2(self.0+o.0,self.1+o.1)} }`                      |   |                      |
+| 18 | **DoubleEndedIterator**         | Reverse iteration                           | `v.iter().rev()`                                                                                                      |   |                      |
+| 19 | **ExactSizeIterator**           | Get length cheaply                          | `v.iter().len()`                                                                                                      |   |                      |
+| 20 | **FromStr**                     | Parse string into type                      | `let n: i32 = "42".parse().unwrap();`                                                                                 |   |                      |
+| 21 | **TryFrom / TryInto**           | Fallible type conversion                    | `let n = i32::try_from(42u8).unwrap();`                                                                               |   |                      |
+| 22 | **Fn / FnMut / FnOnce**         | Traits for closures & callbacks             | `fn apply<F:Fn(i32)->i32>(f:F,x:i32)->i32{f(x)} apply(                                                                | x | x+1,5);`             |
+| 23 | **Send**                        | Marker for thread-safe move across threads  | `std::thread::spawn(                                                                                                  |   | println!("hello"));` |
+| 24 | **Sync**                        | Marker for thread-safe references           | `Arc<Mutex<T>>` is `Sync`                                                                                             |   |                      |
+| 25 | **Any**                         | Type-erasure & dynamic typing               | `let x: Box<dyn Any> = Box::new(42); x.downcast_ref::<i32>();`                                                        |   |                      |
+
+
 ## Closures
 
 Closures are anonymous functions that can capture values from their enclosing scope. They're commonly used with iterators, threading, and functional programming patterns.
