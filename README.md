@@ -1222,6 +1222,27 @@ fn show<T: Into<String>>(item: T) {
 show(&puzzle);  // Works with reference, doesn't consume puzzle
 ```
 
+
+### The `impl<T>` Syntax
+
+```rust
+impl<T> Wrapper<T> {  
+    fn new(value: T) -> Self {  
+        Wrapper { value }  
+    }  
+}
+```
+
+1. `impl<T>` says: **“I’m implementing methods for `Wrapper<T>`, where `T` can be any type.”**
+    
+2. Without `<T>`, Rust would **not know what `T` refers to**, because `T` only exists as a generic for the struct.
+    
+Think of it like this:
+
+* `struct Wrapper<T>` introduces `T` for the type itself.
+    
+* `impl<T>` **introduces `T` for the implementation block** so methods like `new` can use it.
+
 #### `From`
 
 * The **`From` trait** defines how to create one type from another.
