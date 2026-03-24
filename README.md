@@ -1453,7 +1453,7 @@ if party1 == party2 {
 | 22 | **Fn / FnMut / FnOnce**         | Traits for closures & callbacks             | `fn apply<F:Fn(i32)->i32>(f:F,x:i32)->i32{f(x)} apply( \| x \| x+1,5);`             |
 | 23 | **Send**                        | Marker for thread-safe move across threads  | `std::thread::spawn( \|   \| println!("hello"));` |
 | 24 | **Sync**                        | Marker for thread-safe references           | `Arc<Mutex<T>>` is `Sync`                                                                                             |   |                      |
-| 25 | **Any**                         | Type-erasure & dynamic typing               | `let x: Box<dyn Any> = Box::new(42); x.downcast_ref::<i32>();`                                                        |   |                      |
+| 25 | **Any**                         | Type-erasure & dynamic typing               | `let x: Box<dyn Any> = Box::new(42); x.downcast_ref::<i32>();`                                                        |   
 
 ## Closures
 
