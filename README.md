@@ -2841,6 +2841,11 @@ mod tests {
 }
 ```
 
+> [!NOTE]
+> `super` refers to the parent module of the current module. Think of it like “go up one level” in the module hierarchy.
+> 
+> `use super::*;` means: “Bring all items from the parent module into this module’s scope.”
+
 **Test Attributes:**
 
 - `#[test]` - Marks a function as a test
