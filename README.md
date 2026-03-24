@@ -1425,6 +1425,57 @@ if party1 == party2 {
 }
 ```
 
+### impl Traits
+
+In Rust, the `impl Trait` syntax is a convenient way to specify that a function accepts any type that implements a given trait. It is essentially a **shortcut for generic type parameters with trait bounds**.
+
+Example:
+
+```rust
+trait Licensed {  
+    fn licensing_info(&self) -> String {  
+        "Default license".to_string()  
+    }  
+}  
+  
+struct SomeSoftware;  
+struct OtherSoftware;  
+  
+impl Licensed for SomeSoftware {}  
+impl Licensed for OtherSoftware {}  
+  
+// Using impl Trait  
+fn compare_license_types(software1: impl Licensed, software2: impl Licensed) -> bool {  
+    software1.licensing_info() == software2.licensing_info()  
+}
+```
+
+Here, `compare_license_types` can accept **any types** as long as they implement the `Licensed` trait.
+
+
+### **Equivalent Generic Syntax**
+
+The same function can also be written using a generic type parameter:
+
+```rust
+fn compare_license_types<T: Licensed, U: Licensed>(software1: T, software2: U) -> bool {
+    software1.licensing_info() == software2.licensing_info()
+}
+
+// If you want to enforce that both arguments are the same type:
+fn compare_license_types<T: Licensed>(software1: T, software2: T) -> bool {  
+    software1.licensing_info() == software2.licensing_info()  
+}
+```
+
+* `impl Licensed` is syntactic sugar for `T: Licensed`.
+
+- `impl Trait` can also be used as a return type to indicate “some type that implements this trait”:
+    
+```rust
+fn create_software() -> impl Licensed { SomeSoftware }
+```
+    
 ### Top 25 Rust Traits Cheat Sheet
 
 | #  | Trait                          | Purpose / Example                                                                                                         |
