@@ -1222,6 +1222,48 @@ fn show<T: Into<String>>(item: T) {
 show(&puzzle);  // Works with reference, doesn't consume puzzle
 ```
 
+#### `From`
+
+* The **`From` trait** defines how to create one type from another.
+    
+* If a type `B` implements `From<A>`, you can convert an `A` into a `B` safely.
+    
+
+**Example:**
+
+```rust
+n1: u8 = 42;  
+let n16: i16 = i16::from(n1); // i16 implements From<u8>
+```
+
+* Rust has many **built-in `From` implementations** for primitive types and common conversions.
+    
+#### `Into`
+
+* The **`Into` trait** is essentially the **inverse of `From`**.
+    
+* If `B: From<A>` exists, then `A: Into<B>` automatically exists.
+    
+* This lets you write conversions more succinctly:
+    
+```rust
+n1: u8 = 42;  
+let n16: i16 = n1.into(); // Uses From<u8> for i16 under the hood
+```
+
+* `.into()` figures out the target type from the context (like the variable type or function parameter).
+    
+
+#### Key Differences
+
+| Trait | Use | Example |
+| --- | --- | --- |
+| `From` | Explicit conversion, `B::from(a)` | `i16::from(42u8)` |
+| `Into` | Implicit/sugar conversion, `a.into()` | `let x: i16 = 42u8.into();` |
+
+
+A rule is, if you implement `From<A>` for `B`, you automatically get `Into<B>` for `A`.
+    
 ### Practical Exercise Examples
 
 The exercise demonstrates comprehensive trait implementation patterns:
@@ -1470,6 +1512,24 @@ let transformed = numbers
 // Iterator consumer (triggers processing)
 let result: i32 = transformed.sum();  // Actually processes the data
 println!("{}", result);  // 90 (sum of 6, 12, 18, 24, 30)
+```
+
+### Generics
+
+In Rust, generics are a way to write code that works with multiple types without specifying the exact type upfront. They let you create flexible and reusable functions, structs, enums, and traits. Instead of writing separate code for each type, you define a placeholder type that gets filled in when the code is used.
+
+`Vec<T>` is generic over the type `T`. In most cases, the compiler is able to
+infer `T`, for example after pushing a value with a concrete type to the vector.
+But sometimes, the compiler needs some help through a type annotation.
+
+```rust
+main() {
+// Won't work
+let mut numbers = Vec::new(); 
+
+// Works
+let mut numbers: Vec<i8> = Vec::new();
+}
 ```
 
 ### The Turbofish (`::<>`)
