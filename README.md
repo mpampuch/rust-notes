@@ -459,6 +459,10 @@ for (name, score) in &scores {
 }
 ```
 
+Rust HashMaps use the SwissTable design (from Abseil) as the basis for its underlying hash table implementation. More info can be found here:
+- [Abseil Swiss Tables Design Notes](https://abseil.io/about/design/swisstables#swiss-tables-design-notes).
+- [CppCon 2017: Matt Kulukundis “Designing a Fast, Efficient, Cache-friendly Hash Table, Step by Step”](https://www.youtube.com/watch?v=ncHmEUmJZf4).
+
 ### Other Collections
 
 - **`VecDeque<T>`** - Double-ended queue (ring buffer)
