@@ -171,6 +171,8 @@ Here, `"world"` is a string literal stored in the program’s binary, so it has 
 
 > [!NOTE]
 > Usually you do not need multiple lifetimes, there are only some cases where you do.
+> 
+> This only really turns up when you have multiple references and it is important that they are not the same because you want to return one without tying it to the other.
 
 ## Functions
 
