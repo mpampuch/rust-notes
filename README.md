@@ -1439,7 +1439,7 @@ if party1 == party2 {
 | 8  | **Ord**                         | Total ordering for sorting                  | `#[derive(Ord, PartialOrd, Eq, PartialEq)] struct P{i:i32};`                                                          |   |                      |
 | 9  | **Default**                     | Provides default value                      | `#[derive(Default)] struct Config{verbose:bool}; let c:Config=Default::default();`                                    |   |                      |
 | 10 | **Drop**                        | Custom cleanup on scope exit                | `impl Drop for Resource { fn drop(&mut self){ println!("cleanup"); } }`                                               |   |                      |
-| 11 | **Iterator**                    | Iterate over sequences                      | `let v=[1,2,3]; let doubled: Vec<_>=v.iter().map(                                                                     | x | x*2).collect();`     |
+| 11 | **Iterator**                    | Iterate over sequences                      | `let v=[1,2,3]; let doubled: Vec<_>=v.iter().map( \| x \| x*2).collect();`     |
 | 12 | **From / Into**                 | Convert between types                       | `let s:String="hello".into(); let n:i32=5.into();`                                                                    |   |                      |
 | 13 | **AsRef / AsMut**               | Convert to reference types generically      | `fn len(s:impl AsRef<str>){ println!("{}",s.as_ref().len()); }`                                                       |   |                      |
 | 14 | **Borrow / BorrowMut**          | Use references as keys in collections       | `map.get("key")` works without cloning `String`                                                                       |   |                      |
@@ -1450,11 +1450,10 @@ if party1 == party2 {
 | 19 | **ExactSizeIterator**           | Get length cheaply                          | `v.iter().len()`                                                                                                      |   |                      |
 | 20 | **FromStr**                     | Parse string into type                      | `let n: i32 = "42".parse().unwrap();`                                                                                 |   |                      |
 | 21 | **TryFrom / TryInto**           | Fallible type conversion                    | `let n = i32::try_from(42u8).unwrap();`                                                                               |   |                      |
-| 22 | **Fn / FnMut / FnOnce**         | Traits for closures & callbacks             | `fn apply<F:Fn(i32)->i32>(f:F,x:i32)->i32{f(x)} apply(                                                                | x | x+1,5);`             |
-| 23 | **Send**                        | Marker for thread-safe move across threads  | `std::thread::spawn(                                                                                                  |   | println!("hello"));` |
+| 22 | **Fn / FnMut / FnOnce**         | Traits for closures & callbacks             | `fn apply<F:Fn(i32)->i32>(f:F,x:i32)->i32{f(x)} apply( \| x \| x+1,5);`             |
+| 23 | **Send**                        | Marker for thread-safe move across threads  | `std::thread::spawn( \|   \| println!("hello"));` |
 | 24 | **Sync**                        | Marker for thread-safe references           | `Arc<Mutex<T>>` is `Sync`                                                                                             |   |                      |
 | 25 | **Any**                         | Type-erasure & dynamic typing               | `let x: Box<dyn Any> = Box::new(42); x.downcast_ref::<i32>();`                                                        |   |                      |
-
 
 ## Closures
 
