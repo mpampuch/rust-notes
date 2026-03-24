@@ -169,6 +169,9 @@ println!("{}", r);       // always valid
 
 Here, `"world"` is a string literal stored in the program’s binary, so it has a `'static` lifetime. *Rebinding like this is always safe because `'static` outlives all other lifetimes*.
 
+> [!NOTE]
+> Usually you do not need multiple lifetimes, there are only some cases where you do.
+
 ## Functions
 
 Functions are defined using the `fn` keyword with snake_case naming convention, and function declarations can appear anywhere in the file regardless of call order. Parameters require explicit type annotations, and return types are specified with an arrow syntax.
@@ -505,6 +508,29 @@ Examples:
 - `format!(...)` → returns `String`
 - `"text".replace(...)` → returns `String`
 - `"text".chars()` → returns iterator over `char`s
+
+### 
+
+### Rust Slices and Fat Pointers 
+
+* You can think of a `str` (a string slice) as being **kind of like an array of characters** (`[char]`), even though Rust doesn’t store it that way internally.
+    
+* A reference to a string slice (`&str`) is **conceptually similar to a slice of characters** (`&[char]`).
+    
+    * It’s a **fat pointer**, which means it stores two things:
+        
+        1. A pointer to the **start** of the string.
+            
+        2. The **length** of the string.
+            
+* This is the same idea as how slices like `&[T]` work in Rust.
+    
+* The fat pointer makes it possible for Rust to know **where the data starts** and **how many elements it has**, so it can safely handle slicing, indexing, and iteration.
+
+A `String` on the other hand is more conceptually similar to a vector of characters: `Vec<char>`
+- It is heap allocated, and dynamically explandable and contractable
+
+Embedded devices may not have allocators because they don't have a heap, and so if you use a String in your library you may not be able to use that library on these devices.
 
 ## Control Flow
 
