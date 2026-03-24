@@ -7,7 +7,12 @@ Some tips / things of notes for myself while I'm learning rust
 - to_do! macro
 - 2 different kinds of macros `#` and `!`. One is **hygenic** (you don't pollute the namespace and you operate on tokens instead of the AST.) You can't produce invalid Rust code from one of these macros.
 - crates for array comprehension in rust exist and very helpful. Generating data (like trying to get a random integer) in rust is super annoying.
-- 
+- Add a note on:
+
+```rust
+#![warn(missing_debug_implementations, rust_2018_idioms, missing_docs)]
+```
+
 
 ## What is Rust
 
@@ -228,7 +233,7 @@ fn main() {
 
 ## Module System
 
-Rust's module system organizes code into libraries and binaries, with `lib.rs` serving as the root library file and `main.rs` as the binary entry point. All items in libraries are private by default and must be marked with `pub` to be accessible from other modules.
+Rust's module system organizes code into libraries and binaries, with `lib.rs` serving as the root library file and `main.rs` as the binary entry point. **All items in libraries are private by default** and must be marked with `pub` to be accessible from other modules.
 
 ```rust
 // lib.rs
@@ -476,6 +481,30 @@ for (i, grapheme) in thai.graphemes(true).enumerate() {
 When working with strings, you have several options: use the `bytes()` method to access the vector of UTF-8 bytes, use the `chars()` method to retrieve an iterator for Unicode scalars, or use a package like `unicode-segmentation` which provides functions that handle graphemes of various types.
 
 Diacritics and combining characters further complicate indexing. A single visual character (grapheme) can be composed of multiple Unicode scalars, and each scalar can be 1-4 bytes in UTF-8. This three-level hierarchy (bytes → scalars → graphemes) makes constant-time indexing impossible, which is why Rust requires explicit iteration methods for string access.
+
+### Conversions to know
+
+| Method            | Result type        |
+| ----------------- | ------------------ |
+| `"text"`          | `&str`             |
+| `.to_string()`    | `String`           |
+| `String::from()`  | `String`           |
+| `.to_owned()`     | `String`           |
+| `.into()`         | depends on context |
+| `format!()`       | `String`           |
+| `.trim()`         | `&str`             |
+| `.replace()`      | `String`           |
+| `.to_lowercase()` | `String`           |
+
+ f you don't know conversions, look up the type of the method you’re calling in the Rust Documentation
+
+Examples:
+- `"text".trim()` → returns `&str`
+- `"text".to_string()` → returns `String`
+- `"text".to_owned()` → returns `String`
+- `format!(...)` → returns `String`
+- `"text".replace(...)` → returns `String`
+- `"text".chars()` → returns iterator over `char`s
 
 ## Control Flow
 
@@ -1462,6 +1491,76 @@ impl Display for PuzzleError {
 
 impl Error for PuzzleError {}
 ```
+
+### Using `Box<dyn Trait>` for Error Handling
+
+Sometimes, you want to write a function that can return **different types of errors** but you don’t want to define a new enum to combine them. This is where `Box<dyn Trait>` comes in.
+
+- `Box<dyn Trait>` is a **heap-allocated pointer to any type** that implements a particular trait.
+- For errors, the trait is usually `std::error::Error`.
+- Using `Box<dyn Error>` allows a function to return **any type of error** without specifying the concrete type, as long as it implements `Error`.
+
+Example:
+
+```rust 
+use std::error::Error;
+
+#[derive(PartialEq, Debug)]
+enum CreationError {
+    Negative,
+    Zero,
+}
+
+// This is required so that `CreationError` can implement `Error`.
+impl fmt::Display for CreationError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let description = match *self {
+            CreationError::Negative => "number is negative",
+            CreationError::Zero => "number is zero",
+        };
+        f.write_str(description)
+    }
+}
+
+// Create a custom error type that implements the Error trait
+impl Error for CreationError {}
+
+
+#[derive(PartialEq, Debug)]
+struct PositiveNonzeroInteger(u64);
+
+impl PositiveNonzeroInteger {
+    fn new(value: i64) -> Result<PositiveNonzeroInteger, CreationError> {
+        match value {
+            x if x < 0 => Err(CreationError::Negative),
+            0 => Err(CreationError::Zero),
+            x => Ok(PositiveNonzeroInteger(x as u64)),
+        }
+    }
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let pretend_user_input = "42";
+    let x: i64 = pretend_user_input.parse()?; // parse() returns std::num::ParseIntError
+    println!("output={:?}", PositiveNonzeroInteger::new(x)?); // new() returns CreationError
+    Ok(())
+}
+```
+
+- `parse()` returns a `ParseIntError`.
+- `PositiveNonzeroInteger::new()` returns a `CreationError`.
+- Both implement the `Error` trait.
+- By using `Box<dyn Error>` as the `Result`'s error type, you can return either error without creating a custom enum to wrap them.
+
+Think of it as saying:
+
+**“I want any error that implements the `Error` trait.”**
+
+- Normally, `Result<T, E>` needs a specific error type for E.
+- But sometimes your function might call several things that return different error types (like `ParseIntError`, `CreationError`, or `IoError`).
+- Instead of defining a big enum to combine all of them, you can use `Box<dyn Error>`:
+
+This use case for boxes is particularily useful for when you want to own a value and you care only that it is a type which implements a particular trait. To do so, the `Box` is declared as of type `Box<dyn Trait>`  where `Trait` is the trait the compiler looks for on any value used in that context. For this exercise, that context is the potential errors which can be returned in a `Result`.
 
 ### Using thiserror Crate
 
