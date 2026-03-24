@@ -169,10 +169,78 @@ println!("{}", r);       // always valid
 
 Here, `"world"` is a string literal stored in the program’s binary, so it has a `'static` lifetime. *Rebinding like this is always safe because `'static` outlives all other lifetimes*.
 
+### Multiple Lifetimes and Lifetime Bounds
+
 > [!NOTE]
 > Usually you do not need multiple lifetimes, there are only some cases where you do.
 > 
 > This only really turns up when you have multiple references and it is important that they are not the same because you want to return one without tying it to the other.
+
+Lifetime bounds can be applied to types or to other lifetimes.
+
+The bound `'a: 'b` is usually read as `'a outlives 'b`.
+
+Example:
+
+```rust
+struct Split<'hay, 'delim>
+where
+    'hay: 'delim, // haystack outlives delimiter
+{
+    haystack: &'hay str,
+    delimiter: &'delim str,
+    pos: usize,
+}
+
+impl<'hay, 'delim> Split<'hay, 'delim>
+where
+    'hay: 'delim,
+{
+    fn new(haystack: &'hay str, delimiter: &'delim str) -> Self {
+        Self {
+            haystack,
+            delimiter,
+            pos: 0,
+        }
+    }
+}
+
+impl<'hay, 'delim> Iterator for Split<'hay, 'delim>
+where
+    'hay: 'delim,
+{
+    type Item = &'hay str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos >= self.haystack.len() {
+            return None;
+        }
+
+        if let Some(next_pos) = self.haystack[self.pos..].find(self.delimiter) {
+            let start = self.pos;
+            let end = self.pos + next_pos;
+            self.pos = end + self.delimiter.len();
+            Some(&self.haystack[start..end])
+        } else {
+            // return the rest of the string
+            let start = self.pos;
+            self.pos = self.haystack.len();
+            Some(&self.haystack[start..])
+        }
+    }
+}
+
+fn main() {
+    let text = String::from("rust:is:fun");
+    let delim = String::from(":");
+
+    let splitter = Split::<'_, '_>::new(&text, &delim);
+
+    for part in splitter {
+        println!("{}", part);
+    }
+}
+```
 
 ## Functions
 
