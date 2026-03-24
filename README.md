@@ -136,6 +136,46 @@ fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
 
 Here, `'a` is a lifetime parameter that ensures the returned reference is valid as long as both inputs are valid. It doesn’t change how long data lives—it only describes the relationships between references.
 
+Another example:
+
+```rust
+fn longest<(x: &str, y: &str) -> &str {
+    if x.len() > y.len() {
+        x
+    } else {
+        y
+    }
+}
+```
+
+The compiler complains because:
+
+1. `x` and `y` are **references** (`&str`), meaning they point to some string data that lives elsewhere.
+    
+2. The function returns `&str`, but the compiler **doesn’t know whether the returned reference comes from `x` or `y`**, and thus doesn’t know how long it is valid.
+    
+3. Without lifetimes, Rust **assumes the returned reference could be independent of the inputs**, which is unsafe — it could point to invalid memory after `x` or `y` go out of scope.
+    
+Introducing a named lifetime parameter can fix this error.
+
+```rust
+fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+    if x.len() > y.len() { x } else { y }
+}
+```
+
+Here’s what Rust does:
+
+1. Both `x` and `y` are annotated with the **same lifetime `'a`**.
+    
+2. `'a` becomes the **lifetime of the output**.
+ - If `x` and `y` have different actual lifetimes, then Rust will compute `'a` as the intersection of the lifetimes of `x` and `y` — **basically the shorter/shortest lifetime**. 
+ - This is because the returned reference cannot outlive either input.
+
+This tells Rust:
+
+> The returned reference is guaranteed to live at least as long as both `x` and `y`.
+
 ### Rebinding to Shorter Lifetimes
 
 If you have a variable with a longer lifetime, you can safely reassign (or rebind) it to reference data with a shorter lifetime—as long as you only use it within that shorter lifetime.
