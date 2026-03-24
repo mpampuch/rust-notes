@@ -2850,6 +2850,7 @@ mod tests {
 
 - `#[test]` - Marks a function as a test
 - `#[should_panic]` - Test passes if it panics
+    - Can also be more specific: `#[should_panic(expected = "Rectangle width and height must be positive")]`
 - `#[cfg(test)]` - Only compile test module when running tests
 
 **Assert Macros:**
