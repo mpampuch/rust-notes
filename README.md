@@ -1897,6 +1897,131 @@ let filtered_words: Vec<_> = words
 // Result: ["WORLD", "RUST", "PROGRAMMING"]
 ```
 
+## Smart Pointers
+
+In Rust, **smart pointers** are data structures that not only **point to a value**, like a regular reference, but also **have additional capabilities**, such as managing memory, enabling shared ownership, or providing mutability guarantees. Unlike references, smart pointers **own the data they point to** and often manage cleanup automatically when they go out of scope.
+
+### 1. `Box<T>` – Heap Allocation
+
+At compile time, **Rust needs to know how much space a type takes up**. This becomes problematic for **recursive types**, where a value can contain another value of the same type (e.g., linked lists or trees). Without a fixed size, Rust cannot allocate space for the type on the stack.
+
+To solve this, we use **`Box<T>`**, a smart pointer that stores data on the heap. The `Box` itself has a **known, fixed size**, so Rust can handle recursive types safely:
+
+```rust
+enum List {  
+    Cons(i32, Box<List>),  
+    Nil,  
+}
+```
+
+Here, each `Cons` variant contains a `Box<List>`, which is just a pointer with a fixed size. This allows the recursion to work without Rust needing to know the infinite size of `List` at compile time.
+
+**Key points about `Box<T>`:**
+
+* It is the **simplest smart pointer** in Rust.
+    
+* Allocates data on the **heap**, giving it a fixed size on the stack.
+    
+* Particularly useful for **recursive types** or when you want to **transfer ownership** of large data efficiently.
+    
+
+### 2. `Rc<T>` – Reference Counting
+
+* `Rc<T>` stands for **Reference Counted** pointer.
+    
+* Allows **multiple parts of your program to own the same data**.
+    
+* Useful for **shared ownership in single-threaded scenarios**:
+    
+```rust
+use std::rc::Rc;  
+  
+let a = Rc::new(5);  
+let b = Rc::clone(&a);  
+let c = Rc::clone(&a);
+```
+
+* `Rc<T>` keeps track of how many owners exist and **deallocates the data when the last owner goes out of scope**.
+    
+* Limitation: **Not thread-safe**. You can’t send `Rc<T>` across threads.
+
+### 3. `Arc<T>` – Atomic Reference Counting
+
+* `Arc<T>` is like `Rc<T>` but **thread-safe**, using atomic operations to track references.
+    
+* Stands for **Atomic Reference Counted** pointer.
+    
+* Useful when you need **shared ownership across multiple threads**:
+    
+```rust
+use std::sync::Arc;  
+use std::thread;  
+  
+let data = Arc::new(vec![1, 2, 3]);  
+let mut handles = vec![];  
+  
+for _ in 0..3 {  
+    let data_clone = Arc::clone(&data);  
+    handles.push(thread::spawn(move || {  
+        println!("{:?}", data_clone);  
+    }));  
+}  
+  
+for handle in handles {  
+    handle.join().unwrap();  
+}
+```
+
+* `Arc<T>` has slightly more overhead than `Rc<T>` due to atomic operations, so use `Rc` for single-threaded cases.
+    
+
+### 4. `RefCell<T>` and `Mutex<T>` – Interior Mutability
+
+* By default, `Rc<T>` and `Arc<T>` are **immutable**, even though multiple owners exist.
+    
+* Rust enforces **borrow rules** at compile-time, which makes mutating shared data tricky.
+    
+* To mutate data through smart pointers:
+    
+    * **Single-threaded**: Use `RefCell<T>` for **interior mutability**:
+        
+```rust
+use std::rc::Rc;  
+use std::cell::RefCell;  
+  
+let data = Rc::new(RefCell::new(5));  
+*data.borrow_mut() += 1;
+```
+
+* **Multi-threaded**: Use `Mutex<T>` with `Arc<T>`:
+    
+```rust
+use std::sync::{Arc, Mutex};  
+use std::thread;  
+  
+let data = Arc::new(Mutex::new(5));  
+  
+let data_clone = Arc::clone(&data);  
+thread::spawn(move || {  
+    let mut num = data_clone.lock().unwrap();  
+    *num += 1;  
+}).join().unwrap();
+```
+
+* These wrappers allow **mutable access safely** without violating Rust’s ownership rules.
+
+
+### Summary Table
+
+| Smart Pointer | Ownership | Thread-Safe | Mutability | Use Case |
+| --- | --- | --- | --- | --- |
+| `Box<T>` | Single owner | Yes | Yes | Heap allocation, recursive types |
+| `Rc<T>` | Shared | No | No | Shared ownership, single-threaded |
+| `Arc<T>` | Shared | Yes | No | Shared ownership, multi-threaded |
+| `RefCell<T>` | Single owner | No | Yes | Interior mutability in single-threaded |
+| `Mutex<T>` | Shared (with Arc) | Yes | Yes | Interior mutability in multi-threaded |
+
+
 ## Error Handling
 
 Rust's error handling system is built around the `Result<T, E>` type and custom error types. Creating well-designed error types is crucial for library development and professional Rust code.
