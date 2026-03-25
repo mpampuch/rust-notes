@@ -66,6 +66,17 @@ In Rust, `::` is used to access things that belong to a type, module, or namespa
 
 > “go inside this thing and get something from it”
 
+It's used to access things tied to a type, module, or enum, not a specific value. It works at the type/module level (static context).
+
+This is different from the `.` operator, which is used to access something belonging to a value/instance (runtime context). Think of it as: 
+
+> “This thing exists on this specific value.”
+
+
+| Syntax | Used for | When to use it | Example |
+| --- | --- | --- | --- |
+| `::` | Type/module level / associated items | To access something that belongs to a type or module | `i64::MIN` (smallest i64), `String::new()` (create a string), `Option::Some(5)` |
+| `.` | Value/instance level / methods/fields | To use something that belongs to a specific value | `s.len()` (length of string `s`), `arr.iter()` (go through array `arr`) |
 
 See this Appendix for all operators: https://doc.rust-lang.org/book/appendix-02-operators.html
 
