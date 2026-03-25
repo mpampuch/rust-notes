@@ -55,6 +55,20 @@ cargo run --release    # Build optimized version
 
 Cargo compiles projects in debug mode by default, which includes debug symbols for faster compilation but slower execution. Release mode removes debug symbols, resulting in slower compilation but significantly faster execution. Cargo also implements smart caching and won't recompile if nothing has changed in your source code.
 
+## Operators
+
+Of note:
+
+The scope resolution operator, `::`.
+- (Don't know if this is it's real name or even has one)
+
+In Rust, `::` is used to access things that belong to a type, module, or namespace. Think of it like:
+
+> “go inside this thing and get something from it”
+
+
+See this Appendix for all operators: https://doc.rust-lang.org/book/appendix-02-operators.html
+
 ## Variables
 
 Rust uses the `let` statement to declare variables, with type annotations optional when the compiler can infer the type. Variables are immutable by default, promoting safety, concurrency, and speed by preventing accidental changes and enabling compiler optimizations.
