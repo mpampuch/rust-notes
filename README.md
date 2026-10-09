@@ -15,7 +15,8 @@ Some tips / things of notes for myself while I'm learning rust
 
 ## Quick Notes:
 
-Common rust things:
+### Common rust things
+
 1. type = In Rust, a type tells the compiler what kind of value something is, what operations are allowed on it, and how it should be handled in memory.
 2. `struct` = one kind of thing, containing a set of fields.
 3. `enum` = one of several possible variants of a thing.
@@ -48,6 +49,225 @@ impl Describe for User {
 
 The simplest distinction to remember: structs group fields together; enums represent alternatives. Both define types, and traits define behavior those types can implement.
 
+### Reading complicated Rust types:
+
+This function signature:
+
+```rust
+fn recover<F>(self, fun: F) - Recover<Self, F>
+where
+    Self: Filter<Error = Rejection> + Sized,
+    F: Func<Rejection>,
+    F::Output: TryFuture + Send,
+    ‹F::Output as TryFuture>::Error: IsReject,
+```
+
+1. The first thing to notice is that this type implements the `Self` keyword, which means it's a function that is in an `impl` block for some `struct`
+    - In the docs you see that `recover` is a function on the `Filter` type.
+    - Note: In Rust, `Self` and `self` mean two different things:
+        - `Self` (capital S) refers to the type.
+        - `self` (lowercase s) refers to the current instance/value of that type. It is consumed by this method.
+
+2. A literal reading of this function is that:
+   - The `recover` function on the `Filter` trait takes a generic function `<F>`
+     - `F` is just something, in this case it seems like it's trying to call a function, but we don't know that yet. In this case, `F` is just some type argument that we're going to be passing in.
+ - `self` is going to be the `Filter` specifically, **or the type that implements `Filter`.**
+     - This is because of how traits are implemented. In the source, you have
+     - ```rust
+       pub trait Filter: FilterBase { 
+            fn and<F> (self, other: F) -> And<Self, F> {...}  ... (function signatures that something HAS TO implement)
+       }
+
+       // For example, the `Exact` struct is a type that implements Filter
+
+       pub struct Exact<P>(_);
+       // A `Filter` matching an exact path segment
+
+       // So this `Exact` is the concrete type that implements `Filter` and therefore implements the function `and` for example, and this is done with `impl Filter for Exact`
+       impl<P> Filter for Exact<P> {...}
+       ```
+  - So `recover` has to be implemented for type that implements the `Filter` trait (because of the `self` keyword), and therefore we can pass that concrete type in and call `recover` on it (and we pass it some (probably function, or whatever `F` is in as well), and that `recover` function  call returns a `Recover` type (can be a `struct` or an `enum`).
+    - This `Recover` type is parameterized by whatever type you are implementing for (because of `Self`), and the (probably) function `F`
+    - Example:
+    - ```rust
+      fn recover<F>(self, fun: F) -> Recover<Self, F>
+        
+      // The key idea is that Recover is a generic type that takes two type parameters: Self and F.
+      // 1. What does Recover<Self, F> mean?
+      // Imagine Recover is defined like this:
+
+      struct Recover<T, F> {
+        filter: T,
+        fun: F,
+      }
+
+      // Here, T and F are placeholders for types. When you use Recover, you supply actual types for those placeholders.
+      // For example:
+      Recover<MyFilter, MyClosure>
+
+      // means:
+        // - T = MyFilter
+        // - F = MyClosure
+        // The compiler knows exactly which types fill those placeholders.
+
+      // 2. What does Self mean here?
+
+      // In a trait or an implementation, Self refers to the type associated with the current implementation.
+        // Suppose you have a filter type:
+
+      struct MyFilter;
+
+      // instantiate a variable holding this type
+      let my_filter = MyFilter;
+
+      // instantiate a variable holding a closure
+      let my_closure = || println!("Recovering!");
+        
+        
+      // And you call:
+      my_filter.recover(my_closure);
+        
+      // If recover is being called on MyFilter, then Self represents MyFilter. Therefore:
+
+      Recover<Self, F>
+
+      // becomes conceptually:
+
+      Recover<MyFilter, MyClosure>
+        
+        
+      // The actual closure type is compiler-generated, so MyClosure is just a placeholder name for explanation.
+
+      // 3. What does F mean?
+      // Look at the beginning of the method:
+
+      fn recover<F>(self, fun: F) -> Recover<Self, F>
+        
+      // The <F> introduces a generic type parameter named F.
+      // Then:
+
+      fun: F
+        
+      // means the argument named fun has type F.
+
+      // If you pass a closure into recover, then F is the concrete type of that closure. For example:
+
+      let my_closure = |error| {
+            // Handle the error
+      };
+        
+      // When you pass my_closure to recover, Rust determines the closure's type and uses it for F.
+
+      // 4. Put it all together
+
+      // Method return type
+      Recover<Self, F>
+        
+      // The original type
+      // The type on which you call .recover(), such as MyFilter.
+      Self
+        
+        
+      // The handler's type
+      // The type of the function or closure you pass as fun.
+      F
+        
+      // Together, these parameters let Recover represent both the original filter type and the specific recovery handler type.
+        
+      // For example, if Self is MyFilter and F is the type of your closure, the return type is conceptually:
+      Recover<MyFilter, ClosureType>
+        
+      // One subtle but important point: Self isn't necessarily a type you're implementing a trait for. If recover is defined inside a trait, it refers to the implementing type; if it's defined in an inherent impl, it refers to the type being implemented there.
+      ```
+  - In our type signature, the `where` clause specify additional things types have to implement. `where` clauses specify constraints on types, including trait bounds.
+    - In this case:
+    - `Self: Filter<Error = Rejection> + Sized`
+        - This is a trait bound. `Self` has to be some type that implements the `Filter` trait, and the `Error` type on `Filter` is `Rejection`, it also has to implement the `Sized` trait
+          - `Error` is an associated type. An associated type in Rust is a type that a trait defines as part of its contract, and each implementation of that trait specifies what that type actually is. Think of it as saying every type that implements `Filter` must specify what its `Error` type is.
+          - ```rust
+            trait Filter {
+                type Error;
+            }
+
+            // An implementation chooses the associated type
+            struct MyFilter;
+
+            struct Rejection;
+            struct MyError;
+            
+            trait Filter {
+                type Error;
+            }
+            
+            impl Filter for MyFilter {
+                type Error = Rejection;
+            }
+
+            // Another type could implement the same trait but choose a different error type.
+            struct AnotherFilter;
+
+            impl Filter for AnotherFilter {
+                type Error = MyError;
+            }
+            ```
+
+    - `F: Func<Rejection>` means `F` has to implement `Func` with a type argument of `Rejection`
+    - `F::Output: TryFuture + Send` means `F` has to have an `Output` type (this is an associated type denoted by `::`) and the output type has to implement the `TryFuture` and `Send` traits.
+    - `<F::Output as TryFuture>::Error: IsReject` This means "If we treat the associated type instantiated for `Output` as a type implementing the `TryFuture` trait, and then we select the associated type `Error` defined by `TryFuture`, it has to implement the trait `IsReject`. In other words: The `Error` type associated with the `TryFuture` implementation of `F::Output` must implement the `IsReject` trait.
+      - Example
+      - ```rust
+        struct MyFuture;
+        struct MyError;
+        struct OtherError;
+        
+        trait IsReject {}
+        
+        impl IsReject for MyError {}
+        
+        // Simplified TryFuture trait
+        trait TryFuture {
+            type Error;
+        }
+        
+        // CASE 1: Bound is satisfied
+        struct GoodFuture;
+        
+        impl TryFuture for GoodFuture {
+            type Error = MyError;
+        }
+        
+        // CASE 2: Bound is NOT satisfied
+        struct BadFuture;
+        
+        impl TryFuture for BadFuture {
+            type Error = OtherError;
+        }
+        
+        fn check<F>()
+        where
+            F: TryFuture,
+            <F as TryFuture>::Error: IsReject,
+        {
+        }
+        
+        fn main() {
+            check::<GoodFuture>(); // ✅ Compiles: MyError implements IsReject
+
+        // Uncomment this line to see the compile error:
+        // check::<BadFuture>(); // ❌ Fails: OtherError does not implement IsReject
+        }
+        ```
+
+So to summarize:
+
+```rust
+fn recover<F>(self, fun: F) - Recover<Self, F>
+where
+    Self: Filter<Error = Rejection> + Sized,     // Trait bound (Self: Sized) + Associated-type equality constraint (Self: Filter<Error = Rejection>)
+    F: Func<Rejection>,                          // 
+    F::Output: TryFuture + Send,                 // Trait bound 
+    ‹F::Output as TryFuture>::Error: IsReject,   // Trait bound on an associated type
+```
 
 ## What is Rust
 
@@ -1667,6 +1887,35 @@ let five = get_five();                // 5
 let message = String::from("Hello");
 let print_message = || println!("{}", message);
 print_message();                      // Prints "Hello"
+```
+
+### Closures vs Functions
+
+Regular functions can not capture local variables, whereas closures can:
+
+```rust
+// A regular function — cannot capture local variables
+fn main() {
+    let bonus = 10;
+
+    fn add_bonus(x: i32) -> i32 {
+        x + bonus // ❌ Error!
+    }
+}
+
+// You need to pass `bonus` as an argument instead
+fn add_bonus(x: i32, bonus: i32) -> i32 {
+    x + bonus
+}
+
+// A closure can capture local variables
+fn main() {
+    let bonus = 10;
+
+    let add_bonus = |x| x + bonus; // ✅ Works!
+
+    println!("{}", add_bonus(5)); // 15
+}
 ```
 
 ### Move Closures
