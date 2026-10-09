@@ -13,6 +13,41 @@ Some tips / things of notes for myself while I'm learning rust
 #![warn(missing_debug_implementations, rust_2018_idioms, missing_docs)]
 ```
 
+## Quick Notes:
+
+Common rust things:
+1. type = In Rust, a type tells the compiler what kind of value something is, what operations are allowed on it, and how it should be handled in memory.
+2. `struct` = one kind of thing, containing a set of fields.
+3. `enum` = one of several possible variants of a thing.
+4. `trait` = what a type can do.
+5. `impl` = how you give a type its methods or implement a trait.
+
+How it all fits together:
+
+```rust
+trait Describe {
+    fn describe(&self) -> String;
+}
+
+enum Status {
+    Active,
+    Inactive,
+}
+
+struct User {
+    name: String,
+    status: Status,
+}
+
+impl Describe for User {
+    fn describe(&self) -> String {
+        format!("User: {}", self.name)
+    }
+}
+```
+
+The simplest distinction to remember: structs group fields together; enums represent alternatives. Both define types, and traits define behavior those types can implement.
+
 
 ## What is Rust
 
